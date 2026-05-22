@@ -1,6 +1,6 @@
-# JustDoIt — Gerenciador de Produtividade Semanal
+# JustDoIt — Gerenciador de Tarefas
 
-O **JustDoIt** é uma plataforma web focada no gerenciamento de produtividade pessoal por meio da metodologia de blocos de tempo (*time-blocking*). O sistema foi concebido para mitigar a sobrecarga mental e otimizar fluxos de trabalho através da segregação sistemática de demandas em contextos específicos e monitoramento analítico de esforço.
+O **JustDoIt** é uma plataforma web focada no gerenciamento de tarefas e produtividade pessoal por meio da metodologia de blocos de tempo (*time-blocking*). O sistema foi concebido para mitigar a sobrecarga mental e otimizar fluxos de trabalho através da segregação sistemática de demandas em contextos específicos e monitoramento analítico de esforço.
 
 ---
 
