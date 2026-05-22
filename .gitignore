@@ -1,0 +1,35 @@
+# --- Java & Spring Boot Target ---
+**/target/
+**.class
+*.jar
+*.war
+*.ear
+
+# --- Maven / Gradle Files ---
+.mvn/
+mvnw
+mvnw.cmd
+.gradle/
+build/
+
+# --- IDEs Configuration Files ---
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# --- Frontend Dependency Directories ---
+**/node_modules/
+**/dist/
+**/build/
+
+# --- Operating System Files ---
+.DS_Store
+Thumbs.db
+*.log
