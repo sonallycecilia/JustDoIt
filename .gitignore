@@ -1,35 +1,38 @@
-# --- Java & Spring Boot Target ---
-**/target/
-**.class
-*.jar
-*.war
-*.ear
-
-# --- Maven / Gradle Files ---
-.mvn/
-mvnw
-mvnw.cmd
-.gradle/
+HELP.md
+.gradle
 build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-# --- IDEs Configuration Files ---
-.idea/
-*.iml
-.vscode/
+### STS ###
+.apt_generated
 .classpath
+.factorypath
 .project
-.settings/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
 
-# --- Frontend Dependency Directories ---
-**/node_modules/
-**/dist/
-**/build/
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
 
-# --- Operating System Files ---
-.DS_Store
-Thumbs.db
-*.log
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code e IDEA ###
+.vscode/
+.idea/
