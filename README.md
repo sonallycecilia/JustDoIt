@@ -1,24 +1,137 @@
 # JustDoIt — Gerenciador de Tarefas
 
-O **JustDoIt** é uma plataforma web focada no gerenciamento de tarefas e produtividade pessoal por meio da metodologia de blocos de tempo (*time-blocking*). O sistema foi concebido para mitigar a sobrecarga mental e otimizar fluxos de trabalho através da segregação sistemática de demandas em contextos específicos e monitoramento analítico de esforço.
+O **JustDoIt** é uma plataforma web focada no gerenciamento de tarefas e produtividade pessoal por meio da metodologia de blocos de tempo (*time-blocking*). O sistema organiza demandas em contextos específicos e oferece monitoramento analítico de esforço.
 
 ---
 
-## O Conceito do Projeto
+## Estrutura do Projeto
 
-A essência do **JustDoIt** baseia-se no princípio de que a produtividade humana atinge seu ápice quando a fricção cognitiva inicial é minimizada e a troca de contexto (*context-switching*) é controlada. A aplicação substitui as tradicionais e estáticas listas de tarefas por uma interface de planejamento dinâmico orientada por três pilares fundamentais:
+Projeto multi-módulo **Spring Boot 3.4.1 / Java 21** gerenciado pelo Gradle, composto por 4 serviços independentes que compartilham um único banco MySQL.
 
-* **Estruturação Hierárquica:** Permite o fracionamento manual de macro-objetivos complexos em uma cadeia sequencial de micro-tarefas perfeitamente acionáveis.
-* **Foco Contextual (Time-Blocking):** Centraliza a organização da rotina ao alocar atividades dentro de blocos de tempo rígidos atrelados a contextos operacionais (ex: Trabalho, Universidade, Vida Pessoal).
-* **Auditoria Temporal (Time Tracking):** Instrumentação nativa de cronometragem analítica para medir e registrar quantitativamente o tempo real investido em cada entrega, promovendo um planejamento empírico contínuo.
+```
+JustDoIt/
+├── services/
+│   ├── auth-service/          # Autenticação e JWT
+│   ├── task-service/          # Tarefas e categorias
+│   ├── schedule-service/      # Blocos de tempo e plano semanal
+│   └── notification-service/  # Notificações e preferências
+├── frontend/                  # Interface web
+└── infra/
+    └── docker-compose.yml     # MySQL + Redis
+```
+
+Cada serviço segue o layout **feature-based**:
+
+```
+com.justdoit.<service>/
+├── feature/<name>/   # Controller, Service, Entities, Repositories
+├── config/           # JwtAuthFilter, JwtUtil, WebSecurityConfig
+└── shared/           # DTOs (records), Enums, GlobalExceptionHandler
+```
 
 ---
 
-## Filosofia Arquitetural
+## Serviços
 
-Para garantir a viabilidade técnica, estabilidade e resiliência desse ecossistema, o projeto adota os padrões mais consolidados de engenharia de software moderno:
+### auth-service
+Responsável por registro, login e emissão de tokens JWT.
 
-* **Arquitetura de Microsserviços Desacoplados:** Separação estrita das responsabilidades de negócio (Autenticação, Gestão de Tarefas, Agendamento de Cronograma, Notificações e Portabilidade de Dados).
-* **Arquitetura Orientada a Eventos (EDA):** Integração assíncrona entre serviços utilizando o barramento **Apache Kafka**, garantindo que operações pesadas de background e notificações não impactem a experiência em tempo real da interface.
-* **Isolamento de Persistência (Database-per-Service):** Uso estratégico de bancos de dados relacionais para consistência transacional e cache em memória (**Redis**) para filas e limites de tráfego, garantindo performance e segurança perimetral.
+| Classe | Responsabilidade |
+|---|---|
+| `AuthController` | `POST /auth/register`, `POST /auth/login` |
+| `AuthService` | Lógica de autenticação e geração de token |
+| `User` | Entidade de usuário |
+| `JwtToken` | Tokens emitidos (tabela `jwt_token`) |
 
+### task-service
+Gerencia tarefas e categorias. `Task` é o aggregate root.
+
+| Pacote | Classes principais |
+|---|---|
+| `feature.task` | `Task`, `SubTask`, `TaskModuleConfig`, `TaskTimer`, `TaskNote`, `FocusSession`, `CycleConfig` |
+| `feature.category` | `Category` |
+
+### schedule-service
+Gerencia blocos de tempo e planos semanais.
+
+| Classe | Responsabilidade |
+|---|---|
+| `WeeklyPlan` | Plano da semana (status: `OPEN` / `CLOSED`) |
+| `TimeBlock` | Bloco de tempo alocado em um dia |
+| `WeeklySummary` | Resumo analítico da semana |
+
+### notification-service
+Gerencia notificações e preferências do usuário.
+
+| Classe | Responsabilidade |
+|---|---|
+| `Notification` | Registro de notificação por usuário |
+| `NotificationPreference` | Configurações de alerta do usuário |
+
+---
+
+## Autenticação (JWT Flow)
+
+1. `/auth/register` ou `/auth/login` retornam um token JWT (jjwt 0.12.5, HS256).
+2. O token é armazenado na tabela `jwt_token` e contém `sub` (userId UUID), `email` e `profile`.
+3. Todos os outros endpoints exigem `Authorization: Bearer <token>`.
+4. Cada serviço valida o token via `JwtAuthFilter` (sem dependência cruzada entre serviços).
+
+---
+
+## Infraestrutura
+
+| Componente | Tecnologia |
+|---|---|
+| Banco de dados | MySQL |
+| Cache | Redis |
+
+Subir a infra:
+
+```bash
+docker-compose -f infra/docker-compose.yml up -d
+```
+
+O banco `justdoit_db` é criado automaticamente (`createDatabaseIfNotExist=true`) e as tabelas são gerenciadas pelo Hibernate (`ddl-auto=update`).
+
+---
+
+## Como Rodar
+
+**Pré-requisitos:** Java 21, MySQL e Redis rodando.
+
+```bash
+# Subir todos os serviços
+./gradlew bootRun
+
+# Build sem testes
+./gradlew build -x test
+
+# Rodar testes
+./gradlew test
+```
+
+O frontend é servido separadamente. CORS está configurado em todos os serviços para a origem do frontend.
+
+---
+
+## Tech Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Linguagem | Java 21 |
+| Framework | Spring Boot 3.4.1 |
+| Build | Gradle (multi-módulo) |
+| Persistência | Spring Data JPA + MySQL |
+| Cache | Redis (`spring-boot-starter-data-redis`) |
+| Segurança | Spring Security 6.x — JWT stateless, CSRF desabilitado |
+| JWT | jjwt 0.12.5 |
+| Utilitários | Lombok, Bean Validation (jakarta.validation) |
+
+---
+
+## Contribuição
+
+- **Branch:** `feature/JD-XX-nome-da-tarefa`
+- **Commit:** `[JD-XX] Descrição clara da mudança`
+- Todo código passa por Pull Request — nada vai direto para `main`.
