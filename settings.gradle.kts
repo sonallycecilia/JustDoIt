@@ -1,8 +1,8 @@
 rootProject.name = "justdoit"
 
 include(
-    "auth-service",
-    "task-service",
-    "schedule-service",
-    "notification-service"
+    "services:auth-service",
+    "services:task-service",
+    "services:schedule-service",
+    "services:notification-service"
 )
