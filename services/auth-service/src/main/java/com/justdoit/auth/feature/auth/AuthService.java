@@ -3,6 +3,7 @@ package com.justdoit.auth.feature.auth;
 import com.justdoit.auth.shared.AuthResponse;
 import com.justdoit.auth.shared.LoginRequest;
 import com.justdoit.auth.shared.RegisterRequest;
+import com.justdoit.auth.shared.UserResponse;
 import com.justdoit.auth.config.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -45,9 +47,21 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new IllegalArgumentException("Invalid credentials");
         }
+        jwtTokenRepository.deleteByUserId(user.getId());
         String token = jwtUtil.generateToken(user.getId(), user.getEmail(), "USER");
         persistToken(user, token);
         return new AuthResponse(token);
+    }
+
+    @Transactional
+    public void logout(UUID userId) {
+        jwtTokenRepository.deleteByUserId(userId);
+    }
+
+    public UserResponse getMe(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getBirthDate(), user.getCreatedAt());
     }
 
     private void persistToken(User user, String token) {
