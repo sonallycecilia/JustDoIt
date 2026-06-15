@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  mysql-justdoit:
+    image: mysql:8.0
+    container_name: db_justdoit
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: justdoit_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+  redis-justdoit:
+    image: redis:alpine
+    container_name: cache_justdoit
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
