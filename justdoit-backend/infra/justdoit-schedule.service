@@ -1,0 +1,14 @@
+[Unit]
+Description=JustDoIt schedule-service
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/justdoit
+ExecStart=/usr/bin/java -jar /opt/justdoit/schedule-service.jar
+Environment="CORS_ALLOWED_ORIGINS=https://sonallycecilia.github.io"
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
