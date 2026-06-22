@@ -25,7 +25,7 @@ Cada serviço segue o layout **feature-based**:
 ```
 com.justdoit.<service>/
 ├── feature/<name>/   # Controller, Service, Entities, Repositories
-├── config/           # Configurações de segurança e filtros
+├── config/           # JwtAuthFilter, JwtUtil, WebSecurityConfig
 └── shared/           # DTOs (records), Enums, GlobalExceptionHandler
 ```
 
@@ -41,6 +41,7 @@ Responsável por registro, login e emissão de tokens JWT.
 | `AuthController` | `POST /auth/register`, `POST /auth/login` |
 | `AuthService` | Lógica de autenticação e geração de token |
 | `User` | Entidade de usuário |
+| `JwtToken` | Tokens emitidos (tabela `jwt_token`) |
 
 ### task-service
 Gerencia tarefas e categorias. `Task` é o aggregate root.
@@ -66,6 +67,15 @@ Gerencia notificações e preferências do usuário.
 |---|---|
 | `Notification` | Registro de notificação por usuário |
 | `NotificationPreference` | Configurações de alerta do usuário |
+
+---
+
+## Autenticação (JWT Flow)
+
+1. `/auth/register` ou `/auth/login` retornam um token JWT (jjwt 0.12.5, HS256).
+2. O token é armazenado na tabela `jwt_token` e contém `sub` (userId UUID), `email` e `profile`.
+3. Todos os outros endpoints exigem `Authorization: Bearer <token>`.
+4. Cada serviço valida o token via `JwtAuthFilter` (sem dependência cruzada entre serviços).
 
 ---
 
@@ -114,6 +124,8 @@ O frontend é servido separadamente. CORS está configurado em todos os serviço
 | Build | Gradle (multi-módulo) |
 | Persistência | Spring Data JPA + MySQL |
 | Cache | Redis (`spring-boot-starter-data-redis`) |
+| Segurança | Spring Security 6.x — JWT stateless, CSRF desabilitado |
+| JWT | jjwt 0.12.5 |
 | Utilitários | Lombok, Bean Validation (jakarta.validation) |
 
 ---

@@ -27,5 +27,5 @@ bin/
 .claude
 .docs/
 .gradle/
-../docs/deploy.ps1
+deploy.ps1
 infra/vps-setup.sh
