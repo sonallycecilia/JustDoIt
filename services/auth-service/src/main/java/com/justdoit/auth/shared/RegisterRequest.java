@@ -8,8 +8,8 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 public record RegisterRequest(
-    @NotBlank String name,
-    @NotBlank @Email String email,
-    @NotBlank @Size(min = 8, message = "Password must have at least 8 characters") String password,
+    @NotBlank @Size(max = 120) String name,
+    @NotBlank @Email @Size(max = 255) String email,
+    @NotBlank @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters") String password,
     @NotNull LocalDate birthDate
 ) {}

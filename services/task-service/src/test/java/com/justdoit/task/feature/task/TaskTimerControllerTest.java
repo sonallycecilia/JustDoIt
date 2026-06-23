@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -70,6 +71,7 @@ class TaskTimerControllerTest {
         when(timerService.upsertTimer(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(put("/tasks/{taskId}/timer", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -85,6 +87,7 @@ class TaskTimerControllerTest {
         when(timerService.logSeconds(eq(TASK_ID), eq(300L), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(patch("/tasks/{taskId}/timer/log", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -99,6 +102,7 @@ class TaskTimerControllerTest {
                 .thenThrow(new IllegalArgumentException("timer not found"));
 
         mockMvc.perform(patch("/tasks/{taskId}/timer/log", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TaskTimerLogRequest(60L))))

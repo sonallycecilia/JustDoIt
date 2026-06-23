@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -75,6 +76,7 @@ class CycleConfigControllerTest {
         when(cycleConfigService.upsertCycleConfig(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(put("/tasks/{taskId}/cycle-config", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -89,6 +91,7 @@ class CycleConfigControllerTest {
         CycleConfigRequest request = new CycleConfigRequest(null, null, null, null);
 
         mockMvc.perform(put("/tasks/{taskId}/cycle-config", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

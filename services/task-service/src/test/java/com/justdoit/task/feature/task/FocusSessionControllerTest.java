@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -73,6 +74,7 @@ class FocusSessionControllerTest {
         when(sessionService.createSession(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(post("/tasks/{taskId}/focus-sessions", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -90,6 +92,7 @@ class FocusSessionControllerTest {
         when(sessionService.completeSession(TASK_ID, SESSION_ID, USER_ID)).thenReturn(response);
 
         mockMvc.perform(patch("/tasks/{taskId}/focus-sessions/{sessionId}/complete", TASK_ID, SESSION_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.completed").value(true));
@@ -101,6 +104,7 @@ class FocusSessionControllerTest {
         doNothing().when(sessionService).deleteSession(TASK_ID, SESSION_ID, USER_ID);
 
         mockMvc.perform(delete("/tasks/{taskId}/focus-sessions/{sessionId}", TASK_ID, SESSION_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNoContent());
     }
@@ -112,6 +116,7 @@ class FocusSessionControllerTest {
                 .when(sessionService).deleteSession(TASK_ID, SESSION_ID, USER_ID);
 
         mockMvc.perform(delete("/tasks/{taskId}/focus-sessions/{sessionId}", TASK_ID, SESSION_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNotFound());
     }

@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -72,6 +73,7 @@ class TaskModuleConfigControllerTest {
         when(configService.upsertConfig(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(put("/tasks/{taskId}/module-config", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -87,6 +89,7 @@ class TaskModuleConfigControllerTest {
                 .thenThrow(new IllegalArgumentException("task not found"));
 
         mockMvc.perform(put("/tasks/{taskId}/module-config", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TaskModuleConfigRequest(null, null, null, null, null))))

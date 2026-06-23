@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -80,6 +81,7 @@ class CategoryControllerTest {
         when(categoryService.create(any(), eq(USER_ID))).thenReturn(categoryResponse);
 
         mockMvc.perform(post("/categories")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -92,6 +94,7 @@ class CategoryControllerTest {
     @WithMockUser
     void create_withBlankName_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/categories")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CategoryRequest("", "#FFF", null))))
@@ -106,6 +109,7 @@ class CategoryControllerTest {
         when(categoryService.update(eq(CAT_ID), any(), eq(USER_ID))).thenReturn(updated);
 
         mockMvc.perform(put("/categories/{id}", CAT_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -120,6 +124,7 @@ class CategoryControllerTest {
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(put("/categories/{id}", CAT_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CategoryRequest("n", "#FFF", null))))
@@ -132,6 +137,7 @@ class CategoryControllerTest {
         doNothing().when(categoryService).delete(CAT_ID, USER_ID);
 
         mockMvc.perform(delete("/categories/{id}", CAT_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNoContent());
     }
@@ -142,6 +148,7 @@ class CategoryControllerTest {
         doThrow(new IllegalArgumentException("not found")).when(categoryService).delete(CAT_ID, USER_ID);
 
         mockMvc.perform(delete("/categories/{id}", CAT_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNotFound());
     }

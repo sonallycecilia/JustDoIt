@@ -16,9 +16,9 @@ public class NotificationService {
     private final NotificationPreferenceRepository preferenceRepository;
 
     @Transactional
-    public NotificationResponse createNotification(CreateNotificationRequest request) {
+    public NotificationResponse createNotification(CreateNotificationRequest request, UUID userId) {
         Notification notification = Notification.builder()
-                .userId(request.userId())
+                .userId(userId)
                 .taskId(request.taskId())
                 .type(request.type())
                 .title(request.title())

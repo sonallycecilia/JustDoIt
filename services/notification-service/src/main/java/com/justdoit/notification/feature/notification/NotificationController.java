@@ -22,9 +22,11 @@ public class NotificationController {
 
     @PostMapping
     public ResponseEntity<NotificationResponse> createNotification(
-            @RequestBody @Valid CreateNotificationRequest request) {
+            @RequestBody @Valid CreateNotificationRequest request,
+            HttpServletRequest httpRequest) {
+        UUID userId = extractUserId(httpRequest);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(notificationService.createNotification(request));
+                .body(notificationService.createNotification(request, userId));
     }
 
     @GetMapping
