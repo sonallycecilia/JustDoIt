@@ -2,6 +2,7 @@ package com.justdoit.auth.feature.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.justdoit.auth.shared.LoginRequest;
+import com.justdoit.auth.shared.RefreshRequest;
 import com.justdoit.auth.shared.RegisterRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 @Transactional
 class AuthIntegrationTest {
 
@@ -46,7 +49,8 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(VALID_REGISTER)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.token").isNotEmpty());
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
     }
 
     @Test
@@ -95,7 +99,8 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new LoginRequest(EMAIL, PASSWORD))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty());
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
     }
 
     @Test
@@ -163,7 +168,7 @@ class AuthIntegrationTest {
                 .andReturn();
 
         String token = objectMapper.readTree(registerResult.getResponse().getContentAsString())
-                .get("token").asText();
+                .get("accessToken").asText();
 
         mockMvc.perform(get("/auth/me")
                         .header("Authorization", "Bearer " + token))
@@ -195,7 +200,7 @@ class AuthIntegrationTest {
                 .andReturn();
 
         String token = objectMapper.readTree(registerResult.getResponse().getContentAsString())
-                .get("token").asText();
+                .get("accessToken").asText();
 
         mockMvc.perform(post("/auth/logout")
                         .header("Authorization", "Bearer " + token))
@@ -207,5 +212,62 @@ class AuthIntegrationTest {
     void logout_deveRetornar403_quandoNaoAutenticado() throws Exception {
         mockMvc.perform(post("/auth/logout"))
                 .andExpect(status().isForbidden());
+    }
+
+    // ─────────────────────────────────────────────
+    // POST /auth/refresh
+    // ─────────────────────────────────────────────
+
+    @Test
+    @DisplayName("refresh: deve retornar 200 com novo access token quando o refresh token é válido")
+    void refresh_deveRetornar200ComNovoToken_quandoRefreshTokenValido() throws Exception {
+        MvcResult registerResult = mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(VALID_REGISTER)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String refreshToken = objectMapper.readTree(registerResult.getResponse().getContentAsString())
+                .get("refreshToken").asText();
+
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("refresh: deve retornar 401 quando o refresh token é inválido")
+    void refresh_deveRetornar401_quandoRefreshTokenInvalido() throws Exception {
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest("token-que-nao-existe"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Invalid refresh token"));
+    }
+
+    @Test
+    @DisplayName("refresh: deve retornar 401 após logout (refresh token revogado)")
+    void refresh_deveRetornar401_aposLogout() throws Exception {
+        MvcResult registerResult = mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(VALID_REGISTER)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var body = objectMapper.readTree(registerResult.getResponse().getContentAsString());
+        String accessToken = body.get("accessToken").asText();
+        String refreshToken = body.get("refreshToken").asText();
+
+        mockMvc.perform(post("/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken))))
+                .andExpect(status().isUnauthorized());
     }
 }

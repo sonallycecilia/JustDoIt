@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -47,10 +48,11 @@ class NotificationControllerTest {
     @WithMockUser
     void createNotification_returnsCreated() throws Exception {
         CreateNotificationRequest request = new CreateNotificationRequest(
-                USER_ID, null, NotificationType.TASK_COMPLETED, "Task done", "Your task was completed");
-        when(notificationService.createNotification(any())).thenReturn(notifResponse);
+                null, NotificationType.TASK_COMPLETED, "Task done", "Your task was completed");
+        when(notificationService.createNotification(any(), eq(USER_ID))).thenReturn(notifResponse);
 
         mockMvc.perform(post("/notifications")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -64,10 +66,11 @@ class NotificationControllerTest {
     @WithMockUser
     void createNotification_missingTitle_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/notifications")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new CreateNotificationRequest(USER_ID, null, NotificationType.TASK_COMPLETED, "", "msg"))))
+                                new CreateNotificationRequest(null, NotificationType.TASK_COMPLETED, "", "msg"))))
                 .andExpect(status().isBadRequest());
     }
 
@@ -102,6 +105,7 @@ class NotificationControllerTest {
         when(notificationService.markAsRead(NOTIF_ID, USER_ID)).thenReturn(readResponse);
 
         mockMvc.perform(patch("/notifications/{id}/read", NOTIF_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.read").value(true));
@@ -114,6 +118,7 @@ class NotificationControllerTest {
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(patch("/notifications/{id}/read", NOTIF_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNotFound());
     }
@@ -140,6 +145,7 @@ class NotificationControllerTest {
         when(notificationService.updatePreference(eq(USER_ID), any())).thenReturn(prefResponse);
 
         mockMvc.perform(put("/notifications/preferences")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

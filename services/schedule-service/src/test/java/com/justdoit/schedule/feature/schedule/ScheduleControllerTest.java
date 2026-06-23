@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -51,6 +52,7 @@ class ScheduleControllerTest {
         when(scheduleService.createTimeBlock(any(), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(post("/time-blocks")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -63,6 +65,7 @@ class ScheduleControllerTest {
     @WithMockUser
     void createTimeBlock_missingStartDateTime_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/time-blocks")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"endDateTime\":\"2026-06-21T10:00:00\",\"date\":\"2026-06-21\"}"))
@@ -90,6 +93,7 @@ class ScheduleControllerTest {
         when(scheduleService.createWeeklyPlan(any(), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(post("/weekly-plans")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -105,6 +109,7 @@ class ScheduleControllerTest {
         when(scheduleService.closeWeeklyPlan(PLAN_ID, USER_ID)).thenReturn(response);
 
         mockMvc.perform(patch("/weekly-plans/{id}/close", PLAN_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CLOSED"));
@@ -117,6 +122,7 @@ class ScheduleControllerTest {
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(patch("/weekly-plans/{id}/close", PLAN_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNotFound());
     }
@@ -129,6 +135,7 @@ class ScheduleControllerTest {
         when(scheduleService.generateWeeklySummary(PLAN_ID, USER_ID)).thenReturn(response);
 
         mockMvc.perform(post("/weekly-plans/{id}/summary", PLAN_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalEstimatedMinutes").value(60))
@@ -142,6 +149,7 @@ class ScheduleControllerTest {
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(post("/weekly-plans/{id}/summary", PLAN_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNotFound());
     }

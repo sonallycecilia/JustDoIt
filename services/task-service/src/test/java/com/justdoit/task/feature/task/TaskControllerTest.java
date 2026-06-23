@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -48,6 +49,7 @@ class TaskControllerTest {
         when(taskService.createTask(any(), eq(USER_ID))).thenReturn(taskResponse);
 
         mockMvc.perform(post("/tasks")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -60,6 +62,7 @@ class TaskControllerTest {
     @WithMockUser
     void createTask_withBlankTitle_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/tasks")
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TaskRequest("", null, null, null))))
@@ -107,6 +110,7 @@ class TaskControllerTest {
         when(taskService.updateTask(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(updated);
 
         mockMvc.perform(put("/tasks/{id}", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -121,6 +125,7 @@ class TaskControllerTest {
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(put("/tasks/{id}", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TaskRequest("t", null, null, null))))
@@ -133,6 +138,7 @@ class TaskControllerTest {
         doNothing().when(taskService).deleteTask(TASK_ID, USER_ID);
 
         mockMvc.perform(delete("/tasks/{id}", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNoContent());
     }
@@ -143,6 +149,7 @@ class TaskControllerTest {
         doThrow(new IllegalArgumentException("not found")).when(taskService).deleteTask(TASK_ID, USER_ID);
 
         mockMvc.perform(delete("/tasks/{id}", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNotFound());
     }
@@ -155,6 +162,7 @@ class TaskControllerTest {
         when(taskService.completeTask(TASK_ID, USER_ID)).thenReturn(completed);
 
         mockMvc.perform(patch("/tasks/{id}/complete", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
@@ -168,6 +176,7 @@ class TaskControllerTest {
         when(taskService.addSubTask(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(subResponse);
 
         mockMvc.perform(post("/tasks/{id}/subtasks", TASK_ID)
+                        .with(csrf())
                         .header("Authorization", "Bearer mock-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

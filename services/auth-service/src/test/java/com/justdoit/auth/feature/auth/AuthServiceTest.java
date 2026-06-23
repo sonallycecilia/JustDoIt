@@ -4,6 +4,7 @@ import com.justdoit.auth.shared.AuthResponse;
 import com.justdoit.auth.shared.LoginRequest;
 import com.justdoit.auth.shared.RegisterRequest;
 import com.justdoit.auth.config.JwtUtil;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,8 +13,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,12 +29,18 @@ class AuthServiceTest {
 
     // @Mock cria um dublê de cada dependência
     @Mock private UserRepository userRepository;
-    @Mock private JwtTokenRepository jwtTokenRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtUtil jwtUtil;
 
     // @InjectMocks cria o AuthService real e injeta os mocks acima
     @InjectMocks private AuthService authService;
+
+    @BeforeEach
+    void configurarExpiracaoDoRefreshToken() {
+        // @Value não é resolvido em teste unitário; setamos manualmente (7 dias).
+        ReflectionTestUtils.setField(authService, "refreshTokenExpirationMs", 604_800_000L);
+    }
 
     // ─────────────────────────────────────────────
     // register()
@@ -55,15 +64,16 @@ class AuthServiceTest {
         when(userRepository.existsByEmail("maria@email.com")).thenReturn(false);
         when(passwordEncoder.encode("senha123")).thenReturn("hash_da_senha");
         when(userRepository.save(any(User.class))).thenReturn(usuarioSalvo);
-        when(jwtUtil.generateToken(any(), eq("maria@email.com"), eq("USER"))).thenReturn("token.gerado.aqui");
-        when(jwtTokenRepository.save(any(JwtToken.class))).thenReturn(null);
+        when(jwtUtil.generateAccessToken(any(), eq("maria@email.com"), eq("USER"))).thenReturn("token.gerado.aqui");
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(null);
 
         // Act — executa o método que queremos testar
         AuthResponse response = authService.register(request);
 
         // Assert — verifica o resultado
         assertThat(response).isNotNull();
-        assertThat(response.token()).isEqualTo("token.gerado.aqui");
+        assertThat(response.accessToken()).isEqualTo("token.gerado.aqui");
+        assertThat(response.refreshToken()).isNotBlank();
     }
 
     @Test
@@ -95,8 +105,8 @@ class AuthServiceTest {
         when(userRepository.existsByEmail(any())).thenReturn(false);
         when(passwordEncoder.encode("senha123")).thenReturn("$2a$10$hashBcrypt");
         when(userRepository.save(any())).thenReturn(usuarioSalvo);
-        when(jwtUtil.generateToken(any(), any(), any())).thenReturn("token");
-        when(jwtTokenRepository.save(any())).thenReturn(null);
+        when(jwtUtil.generateAccessToken(any(), any(), any())).thenReturn("token");
+        when(refreshTokenRepository.save(any())).thenReturn(null);
 
         authService.register(request);
 
@@ -125,12 +135,13 @@ class AuthServiceTest {
 
         when(userRepository.findByEmail("maria@email.com")).thenReturn(Optional.of(usuario));
         when(passwordEncoder.matches("senha123", "hash_da_senha")).thenReturn(true);
-        when(jwtUtil.generateToken(any(), eq("maria@email.com"), eq("USER"))).thenReturn("token.valido");
-        when(jwtTokenRepository.save(any())).thenReturn(null);
+        when(jwtUtil.generateAccessToken(any(), eq("maria@email.com"), eq("USER"))).thenReturn("token.valido");
+        when(refreshTokenRepository.save(any())).thenReturn(null);
 
         AuthResponse response = authService.login(request);
 
-        assertThat(response.token()).isEqualTo("token.valido");
+        assertThat(response.accessToken()).isEqualTo("token.valido");
+        assertThat(response.refreshToken()).isNotBlank();
     }
 
     @Test
@@ -164,7 +175,7 @@ class AuthServiceTest {
                 .hasMessage("Invalid credentials");
 
         // Garante que o token NÃO foi gerado
-        verify(jwtUtil, never()).generateToken(any(), any(), any());
+        verify(jwtUtil, never()).generateAccessToken(any(), any(), any());
     }
 
     @Test
@@ -186,5 +197,84 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.login(senhaErrada))
                 .hasMessage("Invalid credentials");
+    }
+
+    // ─────────────────────────────────────────────
+    // refresh()
+    // ─────────────────────────────────────────────
+
+    @Test
+    @DisplayName("refresh: deve emitir novo par de tokens e rotacionar o refresh token")
+    void refresh_deveEmitirNovosTokens_eRotacionar() {
+        UUID userId = UUID.randomUUID();
+        RefreshToken stored = RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .tokenHash("hash-armazenado")
+                .userId(userId)
+                .email("maria@email.com")
+                .profile("USER")
+                .expiresAt(LocalDateTime.now().plusDays(1))
+                .build();
+        User usuario = User.builder().id(userId).email("maria@email.com").build();
+
+        when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(stored));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(usuario));
+        when(jwtUtil.generateAccessToken(any(), eq("maria@email.com"), eq("USER"))).thenReturn("novo.access");
+        when(refreshTokenRepository.save(any())).thenReturn(null);
+
+        AuthResponse response = authService.refresh("refresh-token-em-claro");
+
+        assertThat(response.accessToken()).isEqualTo("novo.access");
+        assertThat(response.refreshToken()).isNotBlank();
+        // o refresh token usado deve ser invalidado (rotação)
+        verify(refreshTokenRepository).delete(stored);
+    }
+
+    @Test
+    @DisplayName("refresh: deve lançar exceção quando o refresh token não existe")
+    void refresh_deveLancarExcecao_quandoTokenInexistente() {
+        when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.refresh("token-invalido"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid refresh token");
+
+        verify(jwtUtil, never()).generateAccessToken(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("refresh: deve invalidar e rejeitar quando o refresh token está expirado")
+    void refresh_deveRejeitar_quandoTokenExpirado() {
+        RefreshToken expirado = RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .tokenHash("hash-expirado")
+                .userId(UUID.randomUUID())
+                .email("maria@email.com")
+                .profile("USER")
+                .expiresAt(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(expirado));
+
+        assertThatThrownBy(() -> authService.refresh("token-expirado"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid refresh token");
+
+        verify(refreshTokenRepository).delete(expirado);
+        verify(jwtUtil, never()).generateAccessToken(any(), any(), any());
+    }
+
+    // ─────────────────────────────────────────────
+    // logout()
+    // ─────────────────────────────────────────────
+
+    @Test
+    @DisplayName("logout: deve revogar (apagar) os refresh tokens do usuário")
+    void logout_deveRevogarRefreshTokens() {
+        UUID userId = UUID.randomUUID();
+
+        authService.logout(userId);
+
+        verify(refreshTokenRepository).deleteByUserId(userId);
     }
 }

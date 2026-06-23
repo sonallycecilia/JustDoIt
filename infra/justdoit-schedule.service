@@ -5,8 +5,8 @@ After=network.target
 [Service]
 User=ubuntu
 WorkingDirectory=/opt/justdoit
+EnvironmentFile=/opt/justdoit/.env
 ExecStart=/usr/bin/java -jar /opt/justdoit/schedule-service.jar
-Environment="CORS_ALLOWED_ORIGINS=https://sonallycecilia.github.io"
 Restart=always
 RestartSec=10
 

@@ -49,10 +49,10 @@ class NotificationServiceTest {
     @Test
     void createNotification_savesAndReturnsResponse() {
         CreateNotificationRequest request = new CreateNotificationRequest(
-                USER_ID, null, NotificationType.TASK_COMPLETED, "Task done", "Your task was completed");
+                null, NotificationType.TASK_COMPLETED, "Task done", "Your task was completed");
         when(notificationRepository.save(any())).thenReturn(notification);
 
-        NotificationResponse result = service.createNotification(request);
+        NotificationResponse result = service.createNotification(request, USER_ID);
 
         assertEquals(NOTIF_ID, result.id());
         assertEquals(USER_ID, result.userId());

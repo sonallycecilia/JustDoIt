@@ -4,6 +4,7 @@ import com.justdoit.auth.config.JwtUtil;
 import com.justdoit.auth.shared.AuthResponse;
 import com.justdoit.auth.shared.ErrorResponse;
 import com.justdoit.auth.shared.LoginRequest;
+import com.justdoit.auth.shared.RefreshRequest;
 import com.justdoit.auth.shared.RegisterRequest;
 import com.justdoit.auth.shared.UserResponse;
 import jakarta.validation.Valid;
@@ -35,6 +36,15 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request) {
         try {
             return ResponseEntity.ok(authService.login(request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@RequestBody @Valid RefreshRequest request) {
+        try {
+            return ResponseEntity.ok(authService.refresh(request.refreshToken()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(e.getMessage()));
         }

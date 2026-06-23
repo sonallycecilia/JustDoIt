@@ -12,16 +12,17 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "jwt_token")
-public class JwtToken {
+@Table(name = "refresh_token")
+public class RefreshToken {
 
     @Id
     @GeneratedValue
     @UuidGenerator
     private UUID id;
 
-    @Column(nullable = false, length = 2048)
-    private String token;
+    // Guardamos apenas o hash SHA-256 do refresh token, nunca o valor em claro.
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    private String tokenHash;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
