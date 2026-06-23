@@ -17,21 +17,27 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    private static final long EXPIRATION_MS = 86_400_000L; // 24h
+    @Value("${jwt.access-token-expiration-ms:900000}") // 15 min
+    private long accessTokenExpirationMs;
 
     private SecretKey getKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(UUID userId, String email, String profile) {
+    public String generateAccessToken(UUID userId, String email, String profile) {
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("email", email)
                 .claim("profile", profile)
+                .claim("type", "access")
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
+                .expiration(new Date(System.currentTimeMillis() + accessTokenExpirationMs))
                 .signWith(getKey())
                 .compact();
+    }
+
+    public long getAccessTokenExpirationMs() {
+        return accessTokenExpirationMs;
     }
 
     public boolean validateToken(String token) {
