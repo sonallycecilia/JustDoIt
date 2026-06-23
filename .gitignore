@@ -24,7 +24,7 @@ bin/
 
 .vscode/
 .idea/
-.claude
+.claude/
 .docs/
 .gradle/
 deploy.ps1
