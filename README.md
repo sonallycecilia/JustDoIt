@@ -15,7 +15,6 @@ JustDoIt/
 │   ├── task-service/          # Tarefas e categorias
 │   ├── schedule-service/      # Blocos de tempo e plano semanal
 │   └── notification-service/  # Notificações e preferências
-├── frontend/                  # Interface web
 └── infra/
     └── docker-compose.yml     # MySQL + Redis
 ```
