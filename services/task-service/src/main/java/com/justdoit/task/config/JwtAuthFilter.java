@@ -39,4 +39,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
         filterChain.doFilter(request, response);
     }
+
+    /**
+     * Por padrão o OncePerRequestFilter não roda no dispatch de erro (/error).
+     * Sem isto, qualquer erro real (400 de body inválido, 405 de método, etc.) é
+     * re-despachado SEM autenticação e, como toda rota exige autenticação, volta
+     * para o cliente mascarado como 403. Rodar o filtro também no /error mantém a
+     * autenticação e deixa o status verdadeiro chegar ao frontend.
+     */
+    @Override
+    protected boolean shouldNotFilterErrorDispatch() {
+        return false;
+    }
 }

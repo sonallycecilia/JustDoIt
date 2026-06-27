@@ -79,6 +79,16 @@ public class TaskController {
         }
     }
 
+    @PatchMapping("/{id}/reopen")
+    public ResponseEntity<TaskResponse> reopenTask(@PathVariable UUID id, HttpServletRequest httpRequest) {
+        UUID userId = extractUserId(httpRequest);
+        try {
+            return ResponseEntity.ok(taskService.reopenTask(id, userId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping("/{id}/subtasks")
     public ResponseEntity<SubTaskResponse> addSubTask(@PathVariable UUID id,
                                                       @RequestBody @Valid SubTaskRequest request,

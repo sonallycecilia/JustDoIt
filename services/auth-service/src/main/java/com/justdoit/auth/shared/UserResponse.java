@@ -8,6 +8,7 @@ public record UserResponse(
         UUID id,
         String name,
         String email,
+        String avatarUrl,
         LocalDate birthDate,
         LocalDateTime createdAt
 ) {}

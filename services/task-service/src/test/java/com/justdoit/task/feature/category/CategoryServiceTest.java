@@ -1,5 +1,7 @@
 package com.justdoit.task.feature.category;
 
+import com.justdoit.task.feature.task.Task;
+import com.justdoit.task.feature.task.TaskRepository;
 import com.justdoit.task.shared.CategoryRequest;
 import com.justdoit.task.shared.CategoryResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ import static org.mockito.Mockito.*;
 class CategoryServiceTest {
 
     @Mock private CategoryRepository categoryRepository;
+    @Mock private TaskRepository taskRepository;
     @InjectMocks private CategoryService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -100,11 +103,15 @@ class CategoryServiceTest {
     }
 
     @Test
-    void delete_callsDelete() {
+    void delete_reassignsTasksToGenericAndDeletes() {
+        Task task = Task.builder().id(UUID.randomUUID()).userId(USER_ID).category(category).title("t").build();
         when(categoryRepository.findByIdAndUserId(CAT_ID, USER_ID)).thenReturn(Optional.of(category));
+        when(taskRepository.findByCategoryIdAndUserId(CAT_ID, USER_ID)).thenReturn(List.of(task));
 
         service.delete(CAT_ID, USER_ID);
 
+        assertNull(task.getCategory());
+        verify(taskRepository).saveAll(List.of(task));
         verify(categoryRepository).delete(category);
     }
 
