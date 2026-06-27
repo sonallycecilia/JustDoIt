@@ -1,7 +1,0 @@
-# Valores apenas para a execução de testes — não usados em produção.
-# A app de produção não tem defaults para estes segredos (devem vir de variáveis de ambiente).
-spring:
-  datasource:
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
-jwt:
-  secret: test-secret-key-please-change-256-bits-minimum-0123456789abcdef
