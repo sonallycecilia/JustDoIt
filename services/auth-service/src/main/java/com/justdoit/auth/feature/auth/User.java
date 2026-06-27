@@ -34,6 +34,11 @@ public class User {
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
+    // Foto de perfil como Data URL (base64). MEDIUMTEXT comporta a imagem
+    // já redimensionada no cliente; TEXT (64KB) seria pequeno demais.
+    @Column(name = "avatar_url", columnDefinition = "MEDIUMTEXT")
+    private String avatarUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

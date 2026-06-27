@@ -35,6 +35,8 @@ public class TaskService {
                 .category(category)
                 .title(request.title())
                 .description(request.description())
+                .dueDate(request.dueDate())
+                .dueTime(request.dueTime())
                 .priority(request.priority() != null ? request.priority() : Priority.NORMAL)
                 .status(TaskStatus.PENDING)
                 .build();
@@ -52,6 +54,8 @@ public class TaskService {
         }
         task.setTitle(request.title());
         task.setDescription(request.description());
+        task.setDueDate(request.dueDate());
+        task.setDueTime(request.dueTime());
         if (request.priority() != null) task.setPriority(request.priority());
         return toResponse(taskRepository.save(task));
     }
@@ -80,6 +84,14 @@ public class TaskService {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         task.setStatus(TaskStatus.COMPLETED);
+        return toResponse(taskRepository.save(task));
+    }
+
+    @Transactional
+    public TaskResponse reopenTask(UUID taskId, UUID userId) {
+        Task task = taskRepository.findByIdAndUserId(taskId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        task.setStatus(TaskStatus.PENDING);
         return toResponse(taskRepository.save(task));
     }
 
@@ -114,6 +126,8 @@ public class TaskService {
                 task.getDescription(),
                 task.getStatus(),
                 task.getPriority(),
+                task.getDueDate(),
+                task.getDueTime(),
                 task.getCreatedAt(),
                 task.getUpdatedAt()
         );

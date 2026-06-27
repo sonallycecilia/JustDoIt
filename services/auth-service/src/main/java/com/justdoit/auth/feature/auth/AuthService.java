@@ -1,8 +1,10 @@
 package com.justdoit.auth.feature.auth;
 
 import com.justdoit.auth.shared.AuthResponse;
+import com.justdoit.auth.shared.CheckEmailResponse;
 import com.justdoit.auth.shared.LoginRequest;
 import com.justdoit.auth.shared.RegisterRequest;
+import com.justdoit.auth.shared.UpdateProfileRequest;
 import com.justdoit.auth.shared.UserResponse;
 import com.justdoit.auth.config.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,8 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final EmailVerifier emailVerifier;
+    private final TaskServiceClient taskServiceClient;
 
     @Value("${jwt.refresh-token-expiration-ms:604800000}") // 7 dias
     private long refreshTokenExpirationMs;
@@ -50,6 +54,19 @@ public class AuthService {
                 .build();
         user = userRepository.save(user);
         return issueTokens(user);
+    }
+
+    /**
+     * Verificação prévia do e-mail (antes do cadastro): se já está registrado e
+     * se o domínio aceita correio. Não lança exceção — sempre responde 200 com o
+     * diagnóstico, deixando o frontend decidir a UX.
+     */
+    public CheckEmailResponse checkEmail(String email) {
+        String normalized = email == null ? "" : email.trim();
+        boolean registered = !normalized.isEmpty() && userRepository.existsByEmail(normalized);
+        boolean deliverable = emailVerifier.isDeliverable(normalized);
+        boolean available = !registered && deliverable;
+        return new CheckEmailResponse(normalized, registered, deliverable, available);
     }
 
     @Transactional
@@ -87,10 +104,64 @@ public class AuthService {
         refreshTokenRepository.deleteByUserId(userId);
     }
 
+    /**
+     * Exclui definitivamente a conta do usuário: primeiro remove os dados de
+     * tarefas/categorias no task-service (repassando o token do usuário) e, em
+     * seguida, apaga refresh tokens e o próprio usuário. Se a purga das tarefas
+     * falhar, a transação é revertida e a conta NÃO é excluída.
+     */
+    @Transactional
+    public void deleteAccount(UUID userId, String authorizationHeader) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        taskServiceClient.deleteUserData(authorizationHeader);
+        refreshTokenRepository.deleteByUserId(userId);
+        userRepository.delete(user);
+    }
+
     public UserResponse getMe(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getBirthDate(), user.getCreatedAt());
+        return toResponse(user);
+    }
+
+    @Transactional
+    public UserResponse updateMe(UUID userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (request.name() != null && !request.name().isBlank()) {
+            user.setName(request.name().trim());
+        }
+
+        if (request.email() != null && !request.email().isBlank()
+                && !request.email().trim().equalsIgnoreCase(user.getEmail())) {
+            if (userRepository.existsByEmail(request.email().trim())) {
+                throw new IllegalArgumentException("Email already registered");
+            }
+            user.setEmail(request.email().trim());
+        }
+
+        if (request.newPassword() != null && !request.newPassword().isBlank()) {
+            if (request.currentPassword() == null
+                    || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+                throw new IllegalArgumentException("Current password is incorrect");
+            }
+            user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        }
+
+        // avatarUrl: presente => aplica; string vazia => remove a foto.
+        if (request.avatarUrl() != null) {
+            user.setAvatarUrl(request.avatarUrl().isBlank() ? null : request.avatarUrl());
+        }
+
+        user = userRepository.save(user);
+        return toResponse(user);
+    }
+
+    private static UserResponse toResponse(User user) {
+        return new UserResponse(user.getId(), user.getName(), user.getEmail(),
+                user.getAvatarUrl(), user.getBirthDate(), user.getCreatedAt());
     }
 
     private AuthResponse issueTokens(User user) {

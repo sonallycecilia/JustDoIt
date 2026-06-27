@@ -9,7 +9,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -39,6 +41,12 @@ public class Task {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "due_date")
+    private LocalDate dueDate;
+
+    @Column(name = "due_time")
+    private LocalTime dueTime;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default

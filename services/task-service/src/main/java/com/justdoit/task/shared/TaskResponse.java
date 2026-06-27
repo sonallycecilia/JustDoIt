@@ -1,6 +1,8 @@
 package com.justdoit.task.shared;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.UUID;
 
 public record TaskResponse(
@@ -11,6 +13,8 @@ public record TaskResponse(
     String description,
     TaskStatus status,
     Priority priority,
+    LocalDate dueDate,
+    LocalTime dueTime,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {}

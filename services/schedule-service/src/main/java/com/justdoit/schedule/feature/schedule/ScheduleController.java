@@ -29,11 +29,42 @@ public class ScheduleController {
     }
 
     @GetMapping("/time-blocks")
-    public ResponseEntity<List<TimeBlockResponse>> getTimeBlocksByDate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+    public ResponseEntity<List<TimeBlockResponse>> getTimeBlocks(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             HttpServletRequest httpRequest) {
         UUID userId = extractUserId(httpRequest);
-        return ResponseEntity.ok(scheduleService.getTimeBlocksByDate(date, userId));
+        if (from != null && to != null) {
+            return ResponseEntity.ok(scheduleService.getTimeBlocksBetween(from, to, userId));
+        }
+        if (date != null) {
+            return ResponseEntity.ok(scheduleService.getTimeBlocksByDate(date, userId));
+        }
+        return ResponseEntity.badRequest().build();
+    }
+
+    @PutMapping("/time-blocks/{id}")
+    public ResponseEntity<TimeBlockResponse> updateTimeBlock(@PathVariable UUID id,
+                                                             @RequestBody @Valid TimeBlockRequest request,
+                                                             HttpServletRequest httpRequest) {
+        UUID userId = extractUserId(httpRequest);
+        try {
+            return ResponseEntity.ok(scheduleService.updateTimeBlock(id, request, userId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/time-blocks/{id}")
+    public ResponseEntity<Void> deleteTimeBlock(@PathVariable UUID id, HttpServletRequest httpRequest) {
+        UUID userId = extractUserId(httpRequest);
+        try {
+            scheduleService.deleteTimeBlock(id, userId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping("/weekly-plans")

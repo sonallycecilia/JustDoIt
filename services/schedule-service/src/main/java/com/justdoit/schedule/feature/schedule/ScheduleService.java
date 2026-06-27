@@ -36,6 +36,31 @@ public class ScheduleService {
                 .toList();
     }
 
+    public List<TimeBlockResponse> getTimeBlocksBetween(LocalDate from, LocalDate to, UUID userId) {
+        return timeBlockRepository.findByUserIdAndDateBetween(userId, from, to).stream()
+                .map(this::toTimeBlockResponse)
+                .toList();
+    }
+
+    @Transactional
+    public TimeBlockResponse updateTimeBlock(UUID blockId, TimeBlockRequest request, UUID userId) {
+        TimeBlock block = timeBlockRepository.findByIdAndUserId(blockId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Time block not found"));
+        block.setTaskId(request.taskId());
+        block.setStartDateTime(request.startDateTime());
+        block.setEndDateTime(request.endDateTime());
+        block.setEstimatedMinutes(request.estimatedMinutes());
+        block.setDate(request.date());
+        return toTimeBlockResponse(timeBlockRepository.save(block));
+    }
+
+    @Transactional
+    public void deleteTimeBlock(UUID blockId, UUID userId) {
+        TimeBlock block = timeBlockRepository.findByIdAndUserId(blockId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Time block not found"));
+        timeBlockRepository.delete(block);
+    }
+
     @Transactional
     public WeeklyPlanResponse createWeeklyPlan(WeeklyPlanRequest request, UUID userId) {
         WeeklyPlan plan = WeeklyPlan.builder()

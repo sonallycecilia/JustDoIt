@@ -29,3 +29,5 @@ jwt:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  task-service:
+    url: ${TASK_SERVICE_URL:http://localhost:8081}
