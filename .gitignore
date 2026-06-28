@@ -2,7 +2,8 @@
 build/
 .idea/
 .vscode/
-CRUD de Tarefa/
+.claude/
+.docs/
 
 # Segredos / variaveis de ambiente (NUNCA commitar)
 .env
