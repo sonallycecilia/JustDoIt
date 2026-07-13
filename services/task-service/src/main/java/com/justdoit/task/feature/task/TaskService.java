@@ -35,6 +35,7 @@ public class TaskService {
                 .category(category)
                 .title(request.title())
                 .description(request.description())
+                .estimatedMinutes(request.estimatedMinutes())
                 .dueDate(request.dueDate())
                 .dueTime(request.dueTime())
                 .priority(request.priority() != null ? request.priority() : Priority.NORMAL)
@@ -54,6 +55,7 @@ public class TaskService {
         }
         task.setTitle(request.title());
         task.setDescription(request.description());
+        task.setEstimatedMinutes(request.estimatedMinutes());
         task.setDueDate(request.dueDate());
         task.setDueTime(request.dueTime());
         if (request.priority() != null) task.setPriority(request.priority());
@@ -124,6 +126,7 @@ public class TaskService {
                 task.getCategory() != null ? task.getCategory().getId() : null,
                 task.getTitle(),
                 task.getDescription(),
+                task.getEstimatedMinutes(),
                 task.getStatus(),
                 task.getPriority(),
                 task.getDueDate(),
