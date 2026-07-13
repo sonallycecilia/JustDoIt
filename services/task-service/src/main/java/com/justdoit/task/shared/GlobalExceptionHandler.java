@@ -18,4 +18,9 @@ public class GlobalExceptionHandler {
                 .forEach(err -> errors.put(err.getField(), err.getDefaultMessage()));
         return ResponseEntity.badRequest().body(errors);
     }
+
+    @ExceptionHandler(BiologicalCeilingExceededException.class)
+    public ResponseEntity<Map<String, String>> handleBiologicalCeiling(BiologicalCeilingExceededException ex) {
+        return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+    }
 }

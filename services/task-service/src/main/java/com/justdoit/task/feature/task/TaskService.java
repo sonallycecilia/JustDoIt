@@ -4,6 +4,8 @@ import com.justdoit.task.shared.SubTaskRequest;
 import com.justdoit.task.shared.SubTaskResponse;
 import com.justdoit.task.shared.TaskRequest;
 import com.justdoit.task.shared.TaskResponse;
+import com.justdoit.task.shared.BiologicalCeilingExceededException;
+import com.justdoit.task.shared.BiologicalCeilingProperties;
 import com.justdoit.task.shared.Priority;
 import com.justdoit.task.shared.TaskStatus;
 import com.justdoit.task.feature.category.Category;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,12 +22,19 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TaskService {
 
+    private static final int MINUTES_PER_DAY = 24 * 60;
+    private static final String BIOLOGICAL_CEILING_MESSAGE =
+            "Teto biológico atingido: Você não possui tempo hábil neste dia para esta tarefa";
+
     private final TaskRepository taskRepository;
     private final SubTaskRepository subTaskRepository;
     private final CategoryRepository categoryRepository;
+    private final BiologicalCeilingProperties biologicalCeilingProperties;
 
     @Transactional
     public TaskResponse createTask(TaskRequest request, UUID userId) {
+        validateBiologicalCeiling(userId, request.dueDate(), request.estimatedMinutes(), null);
+
         Category category = null;
         if (request.categoryId() != null) {
             category = categoryRepository.findByIdAndUserId(request.categoryId(), userId)
@@ -48,6 +58,9 @@ public class TaskService {
     public TaskResponse updateTask(UUID taskId, TaskRequest request, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        validateBiologicalCeiling(userId, request.dueDate(), request.estimatedMinutes(), taskId);
+
         if (request.categoryId() != null) {
             Category category = categoryRepository.findByIdAndUserId(request.categoryId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Category not found"));
@@ -138,5 +151,18 @@ public class TaskService {
 
     private SubTaskResponse toSubTaskResponse(SubTask sub) {
         return new SubTaskResponse(sub.getId(), sub.getTitle(), sub.getStatus(), sub.getPosition());
+    }
+
+    private void validateBiologicalCeiling(UUID userId, LocalDate dueDate, Integer estimatedMinutes, UUID excludedTaskId) {
+        if (dueDate == null || estimatedMinutes == null || estimatedMinutes <= 0) {
+            return;
+        }
+
+        long bookedMinutes = taskRepository.sumEstimatedMinutesByUserIdAndDueDate(userId, dueDate, excludedTaskId);
+        int availableMinutes = Math.max(0, MINUTES_PER_DAY - biologicalCeilingProperties.getSleepMinutes());
+
+        if (bookedMinutes + estimatedMinutes > availableMinutes) {
+            throw new BiologicalCeilingExceededException(BIOLOGICAL_CEILING_MESSAGE);
+        }
     }
 }
