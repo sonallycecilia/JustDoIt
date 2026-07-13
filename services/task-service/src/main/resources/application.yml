@@ -24,3 +24,5 @@ jwt:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  biological-ceiling:
+    sleep-minutes: ${BIOLOGICAL_CEILING_SLEEP_MINUTES:480}
