@@ -1,6 +1,6 @@
 package com.justdoit.auth.config;
 
-import io.jsonwebtoken.Claims;
+import com.justdoit.common.security.JwtValidator;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,13 +11,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 
+/**
+ * Geração de access tokens. O auth-service é o ÚNICO emissor de tokens do
+ * JustDoIt; a validação e a leitura ficam no {@link JwtValidator} do libs/common,
+ * reusado por todos os serviços. iss/aud vêm de lá para haver uma única fonte de
+ * verdade.
+ */
 @Component
 public class JwtUtil {
-
-    // iss/aud fixos: o auth-service é o único emissor e os tokens só valem para a
-    // API do JustDoIt. Os serviços consumidores exigem exatamente estes valores.
-    public static final String ISSUER = "justdoit-auth-service";
-    public static final String AUDIENCE = "justdoit-api";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -35,8 +36,8 @@ public class JwtUtil {
                 // (blacklist) no futuro sem mudar o contrato.
                 .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
-                .issuer(ISSUER)
-                .audience().add(AUDIENCE).and()
+                .issuer(JwtValidator.ISSUER)
+                .audience().add(JwtValidator.AUDIENCE).and()
                 .claim("email", email)
                 .claim("profile", profile)
                 .claim("type", "access")
@@ -48,43 +49,5 @@ public class JwtUtil {
 
     public long getAccessTokenExpirationMs() {
         return accessTokenExpirationMs;
-    }
-
-    public boolean validateToken(String token) {
-        try {
-            // Além de assinatura e expiração, exige que o token seja um ACCESS
-            // token emitido por este auth-service para a API do JustDoIt — um JWT
-            // de outro tipo/emissor assinado com o mesmo segredo não é aceito.
-            Jwts.parser()
-                    .verifyWith(getKey())
-                    .requireIssuer(ISSUER)
-                    .requireAudience(AUDIENCE)
-                    .require("type", "access")
-                    .build()
-                    .parseSignedClaims(token);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private Claims extractClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(getKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-    }
-
-    public UUID extractUserId(String token) {
-        return UUID.fromString(extractClaims(token).getSubject());
-    }
-
-    public String extractEmail(String token) {
-        return extractClaims(token).get("email", String.class);
-    }
-
-    public String extractProfile(String token) {
-        return extractClaims(token).get("profile", String.class);
     }
 }

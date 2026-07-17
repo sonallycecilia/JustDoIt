@@ -7,7 +7,9 @@ import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServic
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableScheduling // limpeza periódica de refresh tokens expirados (RefreshTokenCleanupJob)
-@SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
+@SpringBootApplication(
+        scanBasePackages = { "com.justdoit.auth", "com.justdoit.common" },
+        exclude = { UserDetailsServiceAutoConfiguration.class })
 public class AuthServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(AuthServiceApplication.class, args);

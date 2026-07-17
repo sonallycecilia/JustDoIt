@@ -2,7 +2,7 @@ package com.justdoit.auth.feature.auth;
 
 import com.justdoit.auth.shared.AuthResponse;
 import com.justdoit.auth.shared.CheckEmailResponse;
-import com.justdoit.auth.shared.ErrorResponse;
+import com.justdoit.common.web.ErrorResponse;
 import com.justdoit.auth.shared.LoginRequest;
 import com.justdoit.auth.shared.RefreshRequest;
 import com.justdoit.auth.shared.RegisterRequest;
