@@ -16,5 +16,6 @@ public record TaskResponse(
     LocalDate dueDate,
     LocalTime dueTime,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    CycleType cycleType
 ) {}

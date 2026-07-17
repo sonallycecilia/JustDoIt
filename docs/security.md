@@ -19,7 +19,7 @@ forjar tokens válidos.
 
 | Antes | Depois |
 |---|---|
-| `jwt.secret: ${JWT_SECRET:justdoit-super-secret-key-...}` | `jwt.secret: ${JWT_SECRET}` |
+| `jwt.secret: ${JWT_SECRET:<default fraco removido>}` | `jwt.secret: ${JWT_SECRET}` |
 | `password: ${SPRING_DATASOURCE_PASSWORD:root}` | `password: ${SPRING_DATASOURCE_PASSWORD}` |
 
 Sem o default, a aplicação **falha ao subir** se a variável de ambiente não existir
@@ -121,7 +121,7 @@ POST /auth/refresh  { "refreshToken": "..." }
   → calcula SHA-256 do valor recebido
   → busca na tabela refresh_token (findByTokenHash)
   → invalida (apaga) o refresh token usado          ← rotação
-  → se expirado: 401 Invalid refresh token
+  → se expirado: 401 Refresh token inválido
   → emite novo access + novo refresh
   → retorna { accessToken, refreshToken, expiresIn }
 ```
@@ -202,11 +202,62 @@ pode ser dropada manualmente.
 ## 5. Observações
 
 - **`docs/secrets.md`** guarda segredos de produção em texto puro (JWT_SECRET, senha do
-  banco, caminho da chave SSH). O diretório `docs/` está no `.gitignore`, então o arquivo
-  **não** vai para o repositório — mas mantenha-o protegido localmente e rotacione esses
-  valores periodicamente. Em produção, prefira um *secret manager* ou o `.env` do servidor.
-- Este arquivo (`docs/security.md`) também fica sob `docs/` (gitignored). Para versioná-lo,
-  é preciso forçar: `git add -f docs/security.md`.
+  banco, caminho da chave SSH). ⚠️ Ao contrário do que esta seção dizia antes, o arquivo
+  **chegou a ser commitado** (commit `26d9ed4`). Em 2026-07-03 ele foi removido do índice
+  (`git rm --cached`) e adicionado ao `.gitignore`, mas **o histórico ainda contém os
+  segredos** — ver seção 6 para rotação e expurgo. Em produção, prefira um *secret
+  manager* ou o `.env` do servidor.
 - `docs/auth-service.md` ainda descreve o desenho antigo (token único de 24h, tabela
   `jwt_token`, resposta `{ token }`) e deve ser atualizado para refletir o novo fluxo.
+
+---
+
+## 6. Auditoria JWT (2026-07-03) — medidas implementadas
+
+Referência: `docs/AUDITORIA-JWT-AUTH-SERVICE.md`.
+
+### 6.1 Crítica — segredo de produção no git
+
+`docs/secrets.md` (JWT_SECRET e senha do MySQL de produção) estava rastreado no git.
+Feito: removido do índice + `.gitignore`. **Pendente (ação manual do operador):**
+
+1. **Rotacionar imediatamente** o `JWT_SECRET` e a `SPRING_DATASOURCE_PASSWORD` no VPS
+   (`openssl rand -base64 48`), atualizar o `.env` do servidor e reiniciar os 4 serviços
+   — o mesmo segredo é compartilhado por todos. Todas as sessões ativas caem (re-login).
+2. **Expurgar o histórico**: `git filter-repo --invert-paths --path docs/secrets.md`
+   e force-push; qualquer clone/fork antigo continua contendo o segredo — por isso a
+   rotação vem primeiro e é obrigatória independentemente do expurgo.
+
+### 6.2 Correções implementadas no código
+
+| Achado | Medida |
+|---|---|
+| Claims `iss`/`aud` ausentes; `type` não validado | Access token agora leva `iss=justdoit-auth-service`, `aud=justdoit-api` e `jti`; os filtros dos **4 serviços** exigem `iss`, `aud` e `type=access` na validação |
+| Enumeração de e-mails / abuso de DNS sem throttling | `RateLimitFilter` (token bucket por IP, em memória) nos endpoints públicos `login/register/refresh/check-email` — default 20 req/min por IP (`AUTH_RATE_LIMIT_*`); resposta `429` + `Retry-After` |
+| Reuso de refresh token rotacionado passava despercebido | Rotação agora marca o token como usado (`used_at`) em vez de apagar; se um token já usado reaparecer, **todas as sessões do usuário são revogadas** (detecção de reuso, padrão token-family) |
+| Oráculo de timing no login | E-mail inexistente executa `bcrypt.matches` contra um hash dummy — mesmo custo com ou sem conta |
+| Controller re-parseava o token do header | Endpoints autenticados usam `@AuthenticationPrincipal` (userId do `SecurityContext` populado pelo filtro) |
+| `check-email` disparava DNS por chamada | Cache por domínio (TTL 10 min, teto de 10k entradas) no `MxEmailVerifier`, além do rate limit |
+| Tabela `refresh_token` crescia sem limpeza | `RefreshTokenCleanupJob` (`@Scheduled`, diário às 03:00) remove tokens com `expires_at` vencido |
+
+> Migração de banco: a coluna `refresh_token.used_at` é criada automaticamente pelo
+> `ddl-auto: update` no primeiro start após o deploy.
+
+### 6.3 Risco aceito formalmente — janela de 15 min do access token
+
+Após logout ou exclusão de conta, o **access token** continua válido até expirar
+(≤ 15 min) em todos os serviços: não há blacklist compartilhada (não usamos Redis; a
+revogação vive na tabela MySQL `refresh_token`, consultada só no `/auth/refresh`).
+**Decisão: risco aceito** pelo custo/benefício atual — revogação instantânea exigiria
+uma denylist consultada a cada request em todos os serviços. O `jti` já emitido em cada
+access token viabiliza essa blacklist no futuro sem quebra de contrato. Mitigações
+vigentes: expiração curta (15 min) e revogação imediata do refresh token.
+
+### 6.4 Pendências (médio prazo)
+
+- Assinatura assimétrica (RS256/EdDSA + JWKS): hoje os 4 serviços compartilham o mesmo
+  segredo HMAC — comprometer qualquer serviço permite **emitir** tokens, não só validar.
+  A validação de `iss`/`aud` implementada já prepara o contrato para essa migração.
+- Blacklist de access token (se o risco aceito em 6.3 for revisto).
+- Resposta neutra no registro (confirmação por e-mail) para eliminar de vez a enumeração.
 ```

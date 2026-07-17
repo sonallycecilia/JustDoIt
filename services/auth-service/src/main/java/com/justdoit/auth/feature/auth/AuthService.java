@@ -7,6 +7,7 @@ import com.justdoit.auth.shared.RegisterRequest;
 import com.justdoit.auth.shared.UpdateProfileRequest;
 import com.justdoit.auth.shared.UserResponse;
 import com.justdoit.auth.config.JwtUtil;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,10 +41,19 @@ public class AuthService {
     @Value("${jwt.refresh-token-expiration-ms:604800000}") // 7 dias
     private long refreshTokenExpirationMs;
 
+    // Hash bcrypt "sacrificial": usado no login quando o e-mail não existe, para
+    // que a resposta demore o mesmo tempo com ou sem conta (sem oráculo de timing).
+    private String dummyPasswordHash;
+
+    @PostConstruct
+    void initDummyPasswordHash() {
+        dummyPasswordHash = passwordEncoder.encode("dummy-" + UUID.randomUUID());
+    }
+
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("Email already registered");
+            throw new IllegalArgumentException("Email já cadastrado");
         }
         User user = User.builder()
                 .name(request.name())
@@ -71,10 +81,15 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+        User user = userRepository.findByEmail(request.email()).orElse(null);
+        if (user == null) {
+            // Paga o custo do bcrypt mesmo sem conta — e-mail inexistente e senha
+            // errada respondem no mesmo tempo.
+            passwordEncoder.matches(request.password(), dummyPasswordHash);
+            throw new IllegalArgumentException("Credenciais inválidas");
+        }
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("Invalid credentials");
+            throw new IllegalArgumentException("Credenciais inválidas");
         }
         // Revoga sessões anteriores: apenas um refresh token ativo por usuário.
         refreshTokenRepository.deleteByUserId(user.getId());
@@ -85,17 +100,29 @@ public class AuthService {
     public AuthResponse refresh(String refreshTokenValue) {
         String hash = sha256(refreshTokenValue);
         RefreshToken stored = refreshTokenRepository.findByTokenHash(hash)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+                .orElseThrow(() -> new IllegalArgumentException("Refresh token inválido"));
 
-        boolean expired = stored.getExpiresAt().isBefore(LocalDateTime.now());
-        // Rotação: o refresh token usado é sempre invalidado (válido ou expirado).
-        refreshTokenRepository.delete(stored);
-        if (expired) {
-            throw new IllegalArgumentException("Invalid refresh token");
+        // Detecção de reuso (padrão OAuth token-family): um token já rotacionado
+        // sendo apresentado de novo indica roubo — ou o atacante usa o token velho
+        // depois do usuário legítimo, ou o usuário usa depois do atacante. Nos dois
+        // casos, revogar TODAS as sessões força re-login e corta a cadeia roubada.
+        if (stored.getUsedAt() != null) {
+            refreshTokenRepository.deleteByUserId(stored.getUserId());
+            throw new IllegalArgumentException("Refresh token inválido");
         }
 
+        if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.delete(stored);
+            throw new IllegalArgumentException("Refresh token inválido");
+        }
+
+        // Rotação: marca como usado (em vez de apagar) para que um reuso futuro
+        // seja detectável até o token expirar ou a limpeza periódica removê-lo.
+        stored.setUsedAt(LocalDateTime.now());
+        refreshTokenRepository.save(stored);
+
         User user = userRepository.findById(stored.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+                .orElseThrow(() -> new IllegalArgumentException("Refresh token inválido"));
         return issueTokens(user);
     }
 
@@ -113,7 +140,7 @@ public class AuthService {
     @Transactional
     public void deleteAccount(UUID userId, String authorizationHeader) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
         taskServiceClient.deleteUserData(authorizationHeader);
         refreshTokenRepository.deleteByUserId(userId);
         userRepository.delete(user);
@@ -121,14 +148,14 @@ public class AuthService {
 
     public UserResponse getMe(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
         return toResponse(user);
     }
 
     @Transactional
     public UserResponse updateMe(UUID userId, UpdateProfileRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
 
         if (request.name() != null && !request.name().isBlank()) {
             user.setName(request.name().trim());
@@ -137,7 +164,7 @@ public class AuthService {
         if (request.email() != null && !request.email().isBlank()
                 && !request.email().trim().equalsIgnoreCase(user.getEmail())) {
             if (userRepository.existsByEmail(request.email().trim())) {
-                throw new IllegalArgumentException("Email already registered");
+                throw new IllegalArgumentException("Email já cadastrado");
             }
             user.setEmail(request.email().trim());
         }
@@ -145,7 +172,7 @@ public class AuthService {
         if (request.newPassword() != null && !request.newPassword().isBlank()) {
             if (request.currentPassword() == null
                     || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-                throw new IllegalArgumentException("Current password is incorrect");
+                throw new IllegalArgumentException("Senha atual incorreta");
             }
             user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         }

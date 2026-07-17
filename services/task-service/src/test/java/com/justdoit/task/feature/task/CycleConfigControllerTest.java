@@ -9,7 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,8 +28,8 @@ class CycleConfigControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-    @MockBean private CycleConfigService cycleConfigService;
-    @MockBean private JwtUtil jwtUtil;
+    @MockitoBean private CycleConfigService cycleConfigService;
+    @MockitoBean private JwtUtil jwtUtil;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID TASK_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -45,7 +45,8 @@ class CycleConfigControllerTest {
     void getCycleConfig_returnsOk() throws Exception {
         CycleConfigResponse response = new CycleConfigResponse(
                 CONFIG_ID, TASK_ID, CycleType.WEEKLY,
-                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31), null);
+                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31), null,
+                null, null, null, null);
         when(cycleConfigService.getCycleConfig(TASK_ID, USER_ID)).thenReturn(response);
 
         mockMvc.perform(get("/tasks/{taskId}/cycle-config", TASK_ID)
@@ -70,9 +71,10 @@ class CycleConfigControllerTest {
     @Test
     @WithMockUser
     void upsertCycleConfig_returnsOk() throws Exception {
-        CycleConfigRequest request = new CycleConfigRequest(CycleType.DAILY, LocalDate.of(2025, 6, 1), null, null);
+        CycleConfigRequest request = new CycleConfigRequest(CycleType.DAILY, LocalDate.of(2025, 6, 1), null, null, null, null, null, null);
         CycleConfigResponse response = new CycleConfigResponse(
-                CONFIG_ID, TASK_ID, CycleType.DAILY, LocalDate.of(2025, 6, 1), null, null);
+                CONFIG_ID, TASK_ID, CycleType.DAILY, LocalDate.of(2025, 6, 1), null, null,
+                null, null, null, null);
         when(cycleConfigService.upsertCycleConfig(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(put("/tasks/{taskId}/cycle-config", TASK_ID)
@@ -88,7 +90,7 @@ class CycleConfigControllerTest {
     @Test
     @WithMockUser
     void upsertCycleConfig_withNullCycleType_returnsBadRequest() throws Exception {
-        CycleConfigRequest request = new CycleConfigRequest(null, null, null, null);
+        CycleConfigRequest request = new CycleConfigRequest(null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/tasks/{taskId}/cycle-config", TASK_ID)
                         .with(csrf())

@@ -113,9 +113,25 @@ class TaskTimerServiceTest {
     }
 
     @Test
-    void logSeconds_whenTimerNotFound_throwsException() {
+    void logSeconds_whenTimerAbsent_createsTimerWithLoggedSeconds() {
+        // logSeconds é upsert: o primeiro log de uma tarefa sem timer cria um novo
+        // (actualSeconds parte de 0L) e soma os segundos, sem exigir PUT prévio.
+        TaskTimer saved = TaskTimer.builder().id(TIMER_ID).task(task).actualSeconds(60L).build();
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
         when(timerRepository.findByTaskId(TASK_ID)).thenReturn(Optional.empty());
+        when(timerRepository.save(any())).thenReturn(saved);
+
+        TaskTimerResponse result = service.logSeconds(TASK_ID, 60L, USER_ID);
+
+        ArgumentCaptor<TaskTimer> captor = ArgumentCaptor.forClass(TaskTimer.class);
+        verify(timerRepository).save(captor.capture());
+        assertEquals(60L, captor.getValue().getActualSeconds()); // 0L default + 60
+        assertEquals(60L, result.actualSeconds());
+    }
+
+    @Test
+    void logSeconds_whenTaskNotFound_throwsException() {
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.empty());
         assertThrows(IllegalArgumentException.class, () -> service.logSeconds(TASK_ID, 60L, USER_ID));
     }
 }

@@ -9,9 +9,11 @@ import com.justdoit.task.shared.TaskStatus;
 import com.justdoit.task.feature.category.Category;
 import com.justdoit.task.feature.category.CategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +24,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final SubTaskRepository subTaskRepository;
     private final CategoryRepository categoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public TaskResponse createTask(TaskRequest request, UUID userId) {
@@ -51,6 +54,11 @@ public class TaskService {
             Category category = categoryRepository.findByIdAndUserId(request.categoryId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Category not found"));
             task.setCategory(category);
+        } else {
+            // categoryId nulo = tarefa sem categoria ("Genérico"). O PUT envia o
+            // corpo completo, então nulo é intencional (remover a categoria), não
+            // "não mexer". Sem este else, mover para Genérico não persistia.
+            task.setCategory(null);
         }
         task.setTitle(request.title());
         task.setDescription(request.description());
@@ -68,23 +76,27 @@ public class TaskService {
     }
 
     public TaskResponse getTaskById(UUID taskId, UUID userId) {
-        Task task = taskRepository.findByIdAndUserId(taskId, userId)
+        Task task = taskRepository.findByIdAndUserIdWithCycle(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         return toResponse(task);
     }
 
     public List<TaskResponse> getAllTasksByUser(UUID userId) {
-        return taskRepository.findByUserId(userId).stream()
+        return taskRepository.findByUserIdWithCycle(userId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional
-    public TaskResponse completeTask(UUID taskId, UUID userId) {
+    public TaskResponse completeTask(UUID taskId, UUID userId, String authorizationHeader) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         task.setStatus(TaskStatus.COMPLETED);
-        return toResponse(taskRepository.save(task));
+        task.setCompletedAt(LocalDateTime.now());
+        TaskResponse response = toResponse(taskRepository.save(task));
+        // Consumido após o commit (TaskCompletedListener) para notificar o usuário.
+        eventPublisher.publishEvent(new TaskCompletedEvent(task.getId(), task.getTitle(), authorizationHeader));
+        return response;
     }
 
     @Transactional
@@ -92,6 +104,7 @@ public class TaskService {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         task.setStatus(TaskStatus.PENDING);
+        task.setCompletedAt(null);
         return toResponse(taskRepository.save(task));
     }
 
@@ -106,6 +119,34 @@ public class TaskService {
                 .position(request.position())
                 .build();
         return toSubTaskResponse(subTaskRepository.save(subTask));
+    }
+
+    public List<SubTaskResponse> getSubTasks(UUID taskId, UUID userId) {
+        taskRepository.findByIdAndUserId(taskId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        return subTaskRepository.findByTaskIdOrderByPosition(taskId).stream()
+                .map(this::toSubTaskResponse)
+                .toList();
+    }
+
+    @Transactional
+    public SubTaskResponse toggleSubTask(UUID taskId, UUID subTaskId, UUID userId) {
+        SubTask sub = findOwnedSubTask(taskId, subTaskId, userId);
+        sub.setStatus(sub.getStatus() == TaskStatus.COMPLETED ? TaskStatus.PENDING : TaskStatus.COMPLETED);
+        return toSubTaskResponse(subTaskRepository.save(sub));
+    }
+
+    @Transactional
+    public void deleteSubTask(UUID taskId, UUID subTaskId, UUID userId) {
+        subTaskRepository.delete(findOwnedSubTask(taskId, subTaskId, userId));
+    }
+
+    private SubTask findOwnedSubTask(UUID taskId, UUID subTaskId, UUID userId) {
+        taskRepository.findByIdAndUserId(taskId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        return subTaskRepository.findById(subTaskId)
+                .filter(s -> s.getTask().getId().equals(taskId))
+                .orElseThrow(() -> new IllegalArgumentException("SubTask not found"));
     }
 
     public double getSubTaskProgress(UUID taskId, UUID userId) {
@@ -129,7 +170,8 @@ public class TaskService {
                 task.getDueDate(),
                 task.getDueTime(),
                 task.getCreatedAt(),
-                task.getUpdatedAt()
+                task.getUpdatedAt(),
+                task.getCycleConfig() != null ? task.getCycleConfig().getCycleType() : null
         );
     }
 

@@ -9,4 +9,10 @@ import java.util.UUID;
 public interface FocusSessionRepository extends JpaRepository<FocusSession, UUID> {
     List<FocusSession> findByTaskId(UUID taskId);
     Optional<FocusSession> findByIdAndTaskId(UUID id, UUID taskId);
+
+    // Sessões do usuário no período — fonte do "tempo executado" no /tasks/report
+    // (o TaskTimer é acumulado sem data, não dá para recortar por período).
+    List<FocusSession> findByTask_UserIdAndStartedAtBetween(UUID userId,
+                                                            java.time.LocalDateTime from,
+                                                            java.time.LocalDateTime to);
 }

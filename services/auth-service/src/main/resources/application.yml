@@ -31,3 +31,9 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   task-service:
     url: ${TASK_SERVICE_URL:http://localhost:8081}
+
+auth:
+  rate-limit: # por IP, apenas nos endpoints públicos (login/register/refresh/check-email)
+    enabled: ${AUTH_RATE_LIMIT_ENABLED:true}
+    capacity: ${AUTH_RATE_LIMIT_CAPACITY:20}            # rajada máxima
+    refill-per-minute: ${AUTH_RATE_LIMIT_REFILL:20}     # reposição sustentada

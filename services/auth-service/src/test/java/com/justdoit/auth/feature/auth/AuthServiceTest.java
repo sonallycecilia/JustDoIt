@@ -87,7 +87,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Email already registered");
+                .hasMessage("Email já cadastrado");
 
         // Garante que o banco NÃO foi chamado para salvar
         verify(userRepository, never()).save(any());
@@ -153,7 +153,24 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid credentials");
+                .hasMessage("Credenciais inválidas");
+    }
+
+    @Test
+    @DisplayName("login: deve executar bcrypt mesmo quando email não existe (sem oráculo de timing)")
+    void login_deveExecutarBcrypt_mesmoQuandoEmailNaoExiste() {
+        // Sem o hash dummy, e-mail inexistente falharia rápido (sem bcrypt) e
+        // permitiria enumerar contas medindo o tempo de resposta.
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hashDummy");
+        authService.initDummyPasswordHash();
+
+        LoginRequest request = new LoginRequest("naoexiste@email.com", "senha123");
+        when(userRepository.findByEmail("naoexiste@email.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.login(request))
+                .hasMessage("Credenciais inválidas");
+
+        verify(passwordEncoder).matches("senha123", "$2a$10$hashDummy");
     }
 
     @Test
@@ -172,7 +189,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid credentials");
+                .hasMessage("Credenciais inválidas");
 
         // Garante que o token NÃO foi gerado
         verify(jwtUtil, never()).generateAccessToken(any(), any(), any());
@@ -190,13 +207,15 @@ class AuthServiceTest {
 
         when(userRepository.findByEmail("x@x.com")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("maria@email.com")).thenReturn(Optional.of(usuario));
-        when(passwordEncoder.matches("errada", "hash")).thenReturn(false);
+        // matcher amplo: o caminho de e-mail inexistente também chama matches()
+        // (contra o hash dummy, mitigação de timing) e deve falhar igualmente
+        when(passwordEncoder.matches(anyString(), any())).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(emailErrado))
-                .hasMessage("Invalid credentials");
+                .hasMessage("Credenciais inválidas");
 
         assertThatThrownBy(() -> authService.login(senhaErrada))
-                .hasMessage("Invalid credentials");
+                .hasMessage("Credenciais inválidas");
     }
 
     // ─────────────────────────────────────────────
@@ -226,8 +245,35 @@ class AuthServiceTest {
 
         assertThat(response.accessToken()).isEqualTo("novo.access");
         assertThat(response.refreshToken()).isNotBlank();
-        // o refresh token usado deve ser invalidado (rotação)
-        verify(refreshTokenRepository).delete(stored);
+        // rotação: o token usado vira "lápide" (usedAt preenchido) para que um
+        // reuso futuro seja detectável — não é mais apagado na hora
+        assertThat(stored.getUsedAt()).isNotNull();
+        verify(refreshTokenRepository).save(stored);
+    }
+
+    @Test
+    @DisplayName("refresh: reuso de token já rotacionado deve revogar todas as sessões do usuário")
+    void refresh_deveRevogarTodasAsSessoes_quandoTokenJaRotacionadoForReusado() {
+        UUID userId = UUID.randomUUID();
+        RefreshToken jaUsado = RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .tokenHash("hash-ja-usado")
+                .userId(userId)
+                .email("maria@email.com")
+                .profile("USER")
+                .expiresAt(LocalDateTime.now().plusDays(1))
+                .usedAt(LocalDateTime.now().minusMinutes(5)) // já foi rotacionado antes
+                .build();
+
+        when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(jaUsado));
+
+        assertThatThrownBy(() -> authService.refresh("token-roubado"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Refresh token inválido");
+
+        // detecção de reuso: TODAS as sessões do usuário são derrubadas
+        verify(refreshTokenRepository).deleteByUserId(userId);
+        verify(jwtUtil, never()).generateAccessToken(any(), any(), any());
     }
 
     @Test
@@ -237,7 +283,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.refresh("token-invalido"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid refresh token");
+                .hasMessage("Refresh token inválido");
 
         verify(jwtUtil, never()).generateAccessToken(any(), any(), any());
     }
@@ -258,7 +304,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.refresh("token-expirado"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid refresh token");
+                .hasMessage("Refresh token inválido");
 
         verify(refreshTokenRepository).delete(expirado);
         verify(jwtUtil, never()).generateAccessToken(any(), any(), any());

@@ -6,6 +6,7 @@ import com.justdoit.task.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,6 +25,7 @@ class TaskServiceTest {
     @Mock private TaskRepository taskRepository;
     @Mock private SubTaskRepository subTaskRepository;
     @Mock private CategoryRepository categoryRepository;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @InjectMocks private TaskService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -77,7 +79,7 @@ class TaskServiceTest {
 
     @Test
     void getTaskById_returnsResponse() {
-        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(taskRepository.findByIdAndUserIdWithCycle(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
 
         TaskResponse result = service.getTaskById(TASK_ID, USER_ID);
 
@@ -87,14 +89,14 @@ class TaskServiceTest {
 
     @Test
     void getTaskById_notFound_throwsException() {
-        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.empty());
+        when(taskRepository.findByIdAndUserIdWithCycle(TASK_ID, USER_ID)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () -> service.getTaskById(TASK_ID, USER_ID));
     }
 
     @Test
     void getAllTasksByUser_returnsList() {
-        when(taskRepository.findByUserId(USER_ID)).thenReturn(List.of(task));
+        when(taskRepository.findByUserIdWithCycle(USER_ID)).thenReturn(List.of(task));
 
         List<TaskResponse> result = service.getAllTasksByUser(USER_ID);
 
@@ -114,6 +116,23 @@ class TaskServiceTest {
 
         assertEquals("Updated title", result.title());
         assertEquals(Priority.URGENT_IMPORTANT, result.priority());
+    }
+
+    @Test
+    void updateTask_nullCategory_clearsCategory() {
+        // Tarefa que já tem categoria; PUT com categoryId nulo deve removê-la
+        // (mover para "Genérico" = sem categoria).
+        Task withCat = Task.builder().id(TASK_ID).userId(USER_ID).title("t")
+                .category(category).status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        TaskRequest request = new TaskRequest("t", "d", null, null, null, null);
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(withCat));
+        when(taskRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.updateTask(TASK_ID, request, USER_ID);
+
+        ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(captor.capture());
+        assertNull(captor.getValue().getCategory());
     }
 
     @Test
@@ -147,9 +166,26 @@ class TaskServiceTest {
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
         when(taskRepository.save(any())).thenReturn(completed);
 
-        TaskResponse result = service.completeTask(TASK_ID, USER_ID);
+        TaskResponse result = service.completeTask(TASK_ID, USER_ID, "Bearer token");
 
         assertEquals(TaskStatus.COMPLETED, result.status());
+        // registra QUANDO concluiu (base do /tasks/report) e publica o evento que
+        // vira notificação após o commit
+        assertNotNull(task.getCompletedAt());
+        verify(eventPublisher).publishEvent(any(TaskCompletedEvent.class));
+    }
+
+    @Test
+    void reopenTask_clearsCompletedAt() {
+        task.setStatus(TaskStatus.COMPLETED);
+        task.setCompletedAt(java.time.LocalDateTime.now());
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        TaskResponse result = service.reopenTask(TASK_ID, USER_ID);
+
+        assertEquals(TaskStatus.PENDING, result.status());
+        assertNull(task.getCompletedAt());
     }
 
     @Test

@@ -32,6 +32,12 @@ public class Task {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    // Vínculo de série cíclica: nas ocorrências GERADAS por uma tarefa recorrente,
+    // aponta para o id da tarefa-modelo. Null em tarefas normais e no próprio modelo.
+    // Permite contar/limitar quantas ocorrências futuras existem e limpá-las.
+    @Column(name = "series_id")
+    private UUID seriesId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
@@ -63,6 +69,12 @@ public class Task {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Quando a tarefa foi concluída (null se nunca/reaberta). Diferente de
+    // updatedAt (que muda em qualquer edição), permite relatórios por período
+    // ("concluídas na semana") consumidos pelo schedule-service.
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
 
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default

@@ -20,9 +20,22 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
+    // Devem espelhar os valores emitidos pelo auth-service (JwtUtil de lá).
+    private static final String ISSUER = "justdoit-auth-service";
+    private static final String AUDIENCE = "justdoit-api";
+
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().verifyWith(getKey()).build().parseSignedClaims(token);
+            // Além de assinatura e expiração, exige que o token seja um ACCESS
+            // token emitido pelo auth-service para a API do JustDoIt — um JWT de
+            // outro tipo/emissor assinado com o mesmo segredo não é aceito.
+            Jwts.parser()
+                    .verifyWith(getKey())
+                    .requireIssuer(ISSUER)
+                    .requireAudience(AUDIENCE)
+                    .require("type", "access")
+                    .build()
+                    .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
             return false;

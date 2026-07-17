@@ -14,6 +14,11 @@ import java.util.UUID;
 @Component
 public class JwtUtil {
 
+    // iss/aud fixos: o auth-service é o único emissor e os tokens só valem para a
+    // API do JustDoIt. Os serviços consumidores exigem exatamente estes valores.
+    public static final String ISSUER = "justdoit-auth-service";
+    public static final String AUDIENCE = "justdoit-api";
+
     @Value("${jwt.secret}")
     private String secret;
 
@@ -26,7 +31,12 @@ public class JwtUtil {
 
     public String generateAccessToken(UUID userId, String email, String profile) {
         return Jwts.builder()
+                // jti: identificador único do token — permite revogação individual
+                // (blacklist) no futuro sem mudar o contrato.
+                .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
+                .issuer(ISSUER)
+                .audience().add(AUDIENCE).and()
                 .claim("email", email)
                 .claim("profile", profile)
                 .claim("type", "access")
@@ -42,7 +52,16 @@ public class JwtUtil {
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().verifyWith(getKey()).build().parseSignedClaims(token);
+            // Além de assinatura e expiração, exige que o token seja um ACCESS
+            // token emitido por este auth-service para a API do JustDoIt — um JWT
+            // de outro tipo/emissor assinado com o mesmo segredo não é aceito.
+            Jwts.parser()
+                    .verifyWith(getKey())
+                    .requireIssuer(ISSUER)
+                    .requireAudience(AUDIENCE)
+                    .require("type", "access")
+                    .build()
+                    .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
             return false;

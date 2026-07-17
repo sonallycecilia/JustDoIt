@@ -1,7 +1,22 @@
 # Valores apenas para a execução de testes — não usados em produção.
-# A app de produção não tem defaults para estes segredos (devem vir de variáveis de ambiente).
+# Usamos um H2 em memória (modo de compatibilidade MySQL) para que os testes de
+# integração rodem sem depender de um MySQL externo (ex.: direto pelo IntelliJ).
 spring:
   datasource:
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    url: jdbc:h2:mem:authdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
 jwt:
   secret: test-secret-key-please-change-256-bits-minimum-0123456789abcdef
+auth:
+  rate-limit:
+    # Desligado nos testes de integração: eles disparam dezenas de requisições aos
+    # endpoints públicos do mesmo "IP". O filtro tem teste dedicado (RateLimitFilterTest).
+    enabled: false

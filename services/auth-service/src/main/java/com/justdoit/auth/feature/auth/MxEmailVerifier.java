@@ -9,6 +9,9 @@ import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 import java.util.Hashtable;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -31,6 +34,17 @@ public class MxEmailVerifier implements EmailVerifier {
     // conexão da requisição mesmo que o provedor JNDI ignore os timeouts internos.
     private static final long LOOKUP_TIMEOUT_MS = 4000;
 
+    // Cache por domínio: o endpoint é público e cada chamada dispara lookups DNS
+    // para um domínio controlado pelo chamador — sem cache, vira vetor barato de
+    // amplificação de consultas e consumo de threads. Registros MX mudam raramente;
+    // 10 min de TTL cobre o fluxo de cadastro sem servir dado velho relevante.
+    private static final long CACHE_TTL_MS = 10 * 60 * 1000;
+    private static final int CACHE_MAX_ENTRIES = 10_000;
+
+    private record CachedResult(boolean deliverable, long expiresAtMs) { }
+
+    private final Map<String, CachedResult> cache = new ConcurrentHashMap<>();
+
     private static final ExecutorService DNS_POOL = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "mx-dns-lookup");
         t.setDaemon(true);
@@ -42,18 +56,35 @@ public class MxEmailVerifier implements EmailVerifier {
         if (email == null) return false;
         int at = email.lastIndexOf('@');
         if (at < 0 || at == email.length() - 1) return false;
-        String domain = email.substring(at + 1).trim();
+        String domain = email.substring(at + 1).trim().toLowerCase(Locale.ROOT);
         if (domain.isEmpty()) return false;
 
+        long now = System.currentTimeMillis();
+        CachedResult cached = cache.get(domain);
+        if (cached != null && cached.expiresAtMs() > now) {
+            return cached.deliverable();
+        }
+
         Future<Boolean> future = DNS_POOL.submit(() -> hasMailRecords(domain));
+        boolean deliverable;
         try {
-            return future.get(LOOKUP_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            deliverable = future.get(LOOKUP_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             future.cancel(true);
-            return true; // lookup lento: não bloqueia o cadastro
+            deliverable = true; // lookup lento: não bloqueia o cadastro
         } catch (Exception e) {
-            return true; // qualquer falha inesperada: não bloqueia
+            deliverable = true; // qualquer falha inesperada: não bloqueia
         }
+
+        if (cache.size() >= CACHE_MAX_ENTRIES) {
+            long cutoff = now;
+            cache.values().removeIf(entry -> entry.expiresAtMs() <= cutoff);
+            if (cache.size() >= CACHE_MAX_ENTRIES) {
+                cache.clear(); // proteção extrema contra inundação de domínios únicos
+            }
+        }
+        cache.put(domain, new CachedResult(deliverable, now + CACHE_TTL_MS));
+        return deliverable;
     }
 
     private boolean hasMailRecords(String domain) {

@@ -2,11 +2,11 @@
 
 Visão geral de todos os testes automatizados do sistema (4 microsserviços).
 
-**Total: 159 testes em 20 arquivos.**
+**Total: 162 testes em 21 arquivos.**
 
 | Serviço | Arquivos | Testes |
 |---------|----------|--------|
-| auth-service | 2 | 25 |
+| auth-service | 3 | 28 |
 | task-service | 14 | 99 |
 | schedule-service | 2 | 18 |
 | notification-service | 2 | 17 |
@@ -15,11 +15,11 @@ Padrão geral: cada feature tem um `*ServiceTest` (lógica de negócio, unitári
 
 ---
 
-## auth-service (25)
+## auth-service (28)
 
 ### AuthServiceTest (11) — unitário
 - `configurarExpiracaoDoRefreshToken` — configura expiração do refresh token
-- `register_deveRetornarToken_quandoDadosValidos` — registro válido retorna token
+- `register_deveRetornarToken_quandoDadosValidos` — verifica se o registro é válido e retorna token
 - `register_deveLancarExcecao_quandoEmailJaExiste` — e-mail duplicado lança exceção
 - `register_deveSalvarSenhaComoHash` — senha é persistida como hash (não em texto puro)
 - `login_deveRetornarToken_quandoCredenciaisValidas` — login válido retorna token
@@ -46,6 +46,27 @@ Padrão geral: cada feature tem um `*ServiceTest` (lógica de negócio, unitári
 - `refresh_deveRetornar200ComNovoToken_quandoRefreshTokenValido` — refresh válido → 200
 - `refresh_deveRetornar401_quandoRefreshTokenInvalido` — refresh inválido → 401
 - `refresh_deveRetornar401_aposLogout` — refresh após logout → 401 (token revogado)
+
+### AuthAccessControlMetricsTest (3) — integração / métrica de segurança
+- `taxaDeBloqueioDeAcessoNaoAutorizado_deveSer1` — dispara a bateria de requisições inválidas contra todas as rotas protegidas e exige X = A/B = 1.0
+- `tokenDeUmUsuario_naoAcessaDadosDeOutroUsuario` — token de um usuário só devolve os próprios dados (sem vazamento cruzado)
+- `tokenForjadoComIdentidadeDeOutroUsuario_eBloqueado` — token forjado com o id de outro usuário (assinatura inválida) → 403
+
+> **Métrica de Qualidade — Segurança: Taxa de Bloqueio de Acesso Não Autorizado**
+>
+> `X = A / B` &nbsp;&nbsp; (`0 ≤ X ≤ 1`; ideal = **1**)
+> - **A** = requisições com token JWT ausente, inválido ou de outro usuário que foram **corretamente rejeitadas** (status 401/403).
+> - **B** = total de requisições inválidas disparadas.
+>
+> O teste `taxaDeBloqueioDeAcessoNaoAutorizado_deveSer1` cobre as 4 rotas protegidas
+> (`GET /auth/me`, `PUT /auth/me`, `DELETE /auth/me`, `POST /auth/logout`) combinadas com
+> 9 cenários de autorização inválida — token **ausente**, header **vazio**, `Bearer` **sem token**,
+> JWT **malformado**, **assinatura inválida** (segredo errado), token **expirado**, **esquema errado**
+> (`Basic`), token **sem o prefixo** `Bearer` e token **adulterado** — totalizando **B = 36** requisições.
+> A asserção exige `A == B` ⇒ **X = 1.0**; qualquer rota que não bloqueie aparece na lista de falhas.
+>
+> ⚠️ Por ser `@SpringBootTest` com perfil `test`, exige um **MySQL acessível** em `localhost:3306`
+> (mesma dependência do `AuthIntegrationTest`); sem o banco o contexto Spring não sobe.
 
 ---
 

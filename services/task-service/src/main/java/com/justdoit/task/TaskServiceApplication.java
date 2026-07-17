@@ -4,7 +4,9 @@ package com.justdoit.task;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling // job horário de tarefas atrasadas (OverdueTaskJob)
 @SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
 public class TaskServiceApplication {
     public static void main(String[] args) {

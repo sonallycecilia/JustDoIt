@@ -42,6 +42,17 @@ public class CycleConfigController {
         }
     }
 
+    @DeleteMapping
+    public ResponseEntity<Void> deleteCycleConfig(@PathVariable UUID taskId, HttpServletRequest httpRequest) {
+        UUID userId = extractUserId(httpRequest);
+        try {
+            cycleConfigService.deleteCycleConfig(taskId, userId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     private UUID extractUserId(HttpServletRequest request) {
         String token = request.getHeader("Authorization").substring(7);
         return jwtUtil.extractUserId(token);

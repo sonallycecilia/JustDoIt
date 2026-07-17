@@ -37,10 +37,12 @@ public class TaskTimerService {
 
     @Transactional
     public TaskTimerResponse logSeconds(UUID taskId, Long seconds, UUID userId) {
-        taskRepository.findByIdAndUserId(taskId, userId)
+        Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        // Upsert: o primeiro log de tempo de uma tarefa cria o timer, em vez de
+        // exigir um PUT prévio (o front loga direto ao pausar o cronômetro).
         TaskTimer timer = timerRepository.findByTaskId(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Timer not found"));
+                .orElse(TaskTimer.builder().task(task).build());
         timer.setActualSeconds(timer.getActualSeconds() + seconds);
         return toResponse(timerRepository.save(timer));
     }

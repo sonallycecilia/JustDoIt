@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 import subprocess
 import sys
+import os
+
+# Este script vive em docs/automações/, então a raiz do projeto fica dois níveis acima.
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 VPS_USER    = "ubuntu"
 VPS_HOST    = "137.131.139.107"
@@ -88,8 +92,13 @@ def deploy(alias):
     print(f"{'='*50}")
 
     print("\n[1/3] Gerando JAR...")
-    gradlew = "gradlew.bat" if sys.platform == "win32" else "./gradlew"
-    run([gradlew, f":services:{name}:bootJar"])
+    # No Windows, gradlew.bat precisa rodar via cmd com caminho absoluto
+    # (o Windows não busca .bat no diretório atual sem caminho explícito).
+    if sys.platform == "win32":
+        gradlew = ["cmd", "/c", os.path.join(PROJECT_ROOT, "gradlew.bat")]
+    else:
+        gradlew = [os.path.join(PROJECT_ROOT, "gradlew")]
+    run([*gradlew, f":services:{name}:bootJar"])
 
     print("\n[2/3] Copiando para a VPS...")
     scp(jar_local, jar_remote)
@@ -100,6 +109,7 @@ def deploy(alias):
     print(f"\nDeploy de {name} concluído.")
 
 def main():
+    os.chdir(PROJECT_ROOT)  # caminhos relativos (jars, infra/) resolvem a partir da raiz
     valid = ["setup"] + list(SERVICES.keys()) + ["all"]
 
     if len(sys.argv) != 2 or sys.argv[1] not in valid:

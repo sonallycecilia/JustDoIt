@@ -1,6 +1,5 @@
 package com.justdoit.auth.feature.auth;
 
-import com.justdoit.auth.config.JwtUtil;
 import com.justdoit.auth.shared.AuthResponse;
 import com.justdoit.auth.shared.CheckEmailResponse;
 import com.justdoit.auth.shared.ErrorResponse;
@@ -13,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -23,7 +23,6 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
-    private final JwtUtil jwtUtil;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody @Valid RegisterRequest request) {
@@ -57,23 +56,23 @@ public class AuthController {
         }
     }
 
+    // Nos endpoints autenticados, o userId vem do principal que o JwtAuthFilter já
+    // validou e colocou no SecurityContext — o controller não re-parseia o token.
+
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
-        UUID userId = jwtUtil.extractUserId(authHeader.substring(7));
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UUID userId) {
         authService.logout(userId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserResponse> me(@RequestHeader("Authorization") String authHeader) {
-        UUID userId = jwtUtil.extractUserId(authHeader.substring(7));
+    public ResponseEntity<UserResponse> me(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(authService.getMe(userId));
     }
 
     @PutMapping("/me")
-    public ResponseEntity<?> updateMe(@RequestHeader("Authorization") String authHeader,
+    public ResponseEntity<?> updateMe(@AuthenticationPrincipal UUID userId,
                                       @RequestBody @Valid UpdateProfileRequest request) {
-        UUID userId = jwtUtil.extractUserId(authHeader.substring(7));
         try {
             return ResponseEntity.ok(authService.updateMe(userId, request));
         } catch (IllegalArgumentException e) {
@@ -82,8 +81,9 @@ public class AuthController {
     }
 
     @DeleteMapping("/me")
-    public ResponseEntity<?> deleteMe(@RequestHeader("Authorization") String authHeader) {
-        UUID userId = jwtUtil.extractUserId(authHeader.substring(7));
+    public ResponseEntity<?> deleteMe(@AuthenticationPrincipal UUID userId,
+                                      // repassado ao task-service para a purga dos dados do usuário
+                                      @RequestHeader("Authorization") String authHeader) {
         try {
             authService.deleteAccount(userId, authHeader);
             return ResponseEntity.noContent().build();

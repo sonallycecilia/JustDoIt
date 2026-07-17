@@ -22,6 +22,7 @@ class CycleConfigServiceTest {
 
     @Mock private TaskRepository taskRepository;
     @Mock private CycleConfigRepository cycleConfigRepository;
+    @Mock private CycleMaterializer materializer;
     @InjectMocks private CycleConfigService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -72,7 +73,7 @@ class CycleConfigServiceTest {
     @Test
     void upsertCycleConfig_whenAbsent_createsNew() {
         LocalDate start = LocalDate.of(2025, 6, 1);
-        CycleConfigRequest request = new CycleConfigRequest(CycleType.DAILY, start, null, null);
+        CycleConfigRequest request = new CycleConfigRequest(CycleType.DAILY, start, null, null, null, null, null, null);
         CycleConfig saved = CycleConfig.builder()
                 .id(CONFIG_ID).task(task).cycleType(CycleType.DAILY).startDate(start).build();
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
@@ -88,7 +89,7 @@ class CycleConfigServiceTest {
 
     @Test
     void upsertCycleConfig_whenPresent_updatesCycleType() {
-        CycleConfigRequest request = new CycleConfigRequest(CycleType.MONTHLY, null, null, null);
+        CycleConfigRequest request = new CycleConfigRequest(CycleType.MONTHLY, null, null, null, null, null, null, null);
         CycleConfig saved = CycleConfig.builder()
                 .id(CONFIG_ID).task(task).cycleType(CycleType.MONTHLY).build();
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
@@ -107,6 +108,42 @@ class CycleConfigServiceTest {
     void upsertCycleConfig_whenTaskNotFound_throwsException() {
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.empty());
         assertThrows(IllegalArgumentException.class, () ->
-                service.upsertCycleConfig(TASK_ID, new CycleConfigRequest(CycleType.DAILY, null, null, null), USER_ID));
+                service.upsertCycleConfig(TASK_ID, new CycleConfigRequest(CycleType.DAILY, null, null, null, null, null, null, null), USER_ID));
+    }
+
+    @Test
+    void upsertCycleConfig_customValid_persistsIntervalFields() {
+        CycleConfigRequest request = new CycleConfigRequest(
+                CycleType.CUSTOM, LocalDate.of(2025, 7, 20), null, null,
+                IntervalUnit.HOURS, 12, 7, java.time.LocalTime.of(9, 0));
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(cycleConfigRepository.findByTaskId(TASK_ID)).thenReturn(Optional.empty());
+        when(cycleConfigRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CycleConfigResponse result = service.upsertCycleConfig(TASK_ID, request, USER_ID);
+
+        assertEquals(CycleType.CUSTOM, result.cycleType());
+        assertEquals(IntervalUnit.HOURS, result.intervalUnit());
+        assertEquals(12, result.intervalCount());
+        assertEquals(7, result.totalOccurrences());
+        assertEquals(java.time.LocalTime.of(9, 0), result.startTime());
+    }
+
+    @Test
+    void upsertCycleConfig_customMissingFields_throws() {
+        CycleConfigRequest request = new CycleConfigRequest(
+                CycleType.CUSTOM, null, null, null, null, null, null, null);
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upsertCycleConfig(TASK_ID, request, USER_ID));
+    }
+
+    @Test
+    void upsertCycleConfig_customTooManyOccurrences_throws() {
+        CycleConfigRequest request = new CycleConfigRequest(
+                CycleType.CUSTOM, null, null, null, IntervalUnit.DAYS, 1, 999, null);
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upsertCycleConfig(TASK_ID, request, USER_ID));
     }
 }

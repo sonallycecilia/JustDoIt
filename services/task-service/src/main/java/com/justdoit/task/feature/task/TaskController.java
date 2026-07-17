@@ -73,7 +73,9 @@ public class TaskController {
     public ResponseEntity<TaskResponse> completeTask(@PathVariable UUID id, HttpServletRequest httpRequest) {
         UUID userId = extractUserId(httpRequest);
         try {
-            return ResponseEntity.ok(taskService.completeTask(id, userId));
+            // O header segue junto para o notification-service ser chamado com o
+            // token do próprio usuário (nunca com credencial do serviço).
+            return ResponseEntity.ok(taskService.completeTask(id, userId, httpRequest.getHeader("Authorization")));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -96,6 +98,41 @@ public class TaskController {
         UUID userId = extractUserId(httpRequest);
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(taskService.addSubTask(id, request, userId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/subtasks")
+    public ResponseEntity<List<SubTaskResponse>> listSubTasks(@PathVariable UUID id, HttpServletRequest httpRequest) {
+        UUID userId = extractUserId(httpRequest);
+        try {
+            return ResponseEntity.ok(taskService.getSubTasks(id, userId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PatchMapping("/{id}/subtasks/{subId}/toggle")
+    public ResponseEntity<SubTaskResponse> toggleSubTask(@PathVariable UUID id,
+                                                         @PathVariable UUID subId,
+                                                         HttpServletRequest httpRequest) {
+        UUID userId = extractUserId(httpRequest);
+        try {
+            return ResponseEntity.ok(taskService.toggleSubTask(id, subId, userId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/{id}/subtasks/{subId}")
+    public ResponseEntity<Void> deleteSubTask(@PathVariable UUID id,
+                                              @PathVariable UUID subId,
+                                              HttpServletRequest httpRequest) {
+        UUID userId = extractUserId(httpRequest);
+        try {
+            taskService.deleteSubTask(id, subId, userId);
+            return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }

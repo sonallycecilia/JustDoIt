@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,8 +27,8 @@ class TaskControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-    @MockBean private TaskService taskService;
-    @MockBean private JwtUtil jwtUtil;
+    @MockitoBean private TaskService taskService;
+    @MockitoBean private JwtUtil jwtUtil;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID TASK_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -39,7 +39,7 @@ class TaskControllerTest {
     void setUp() {
         when(jwtUtil.extractUserId(anyString())).thenReturn(USER_ID);
         taskResponse = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
-                TaskStatus.PENDING, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now());
+                TaskStatus.PENDING, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now(), null);
     }
 
     @Test
@@ -106,7 +106,7 @@ class TaskControllerTest {
     void updateTask_returnsOk() throws Exception {
         TaskRequest request = new TaskRequest("Updated", null, null, null, null, null);
         TaskResponse updated = new TaskResponse(TASK_ID, USER_ID, null, "Updated", null,
-                TaskStatus.PENDING, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now());
+                TaskStatus.PENDING, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now(), null);
         when(taskService.updateTask(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(updated);
 
         mockMvc.perform(put("/tasks/{id}", TASK_ID)
@@ -158,8 +158,8 @@ class TaskControllerTest {
     @WithMockUser
     void completeTask_returnsOk() throws Exception {
         TaskResponse completed = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
-                TaskStatus.COMPLETED, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now());
-        when(taskService.completeTask(TASK_ID, USER_ID)).thenReturn(completed);
+                TaskStatus.COMPLETED, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now(), null);
+        when(taskService.completeTask(eq(TASK_ID), eq(USER_ID), anyString())).thenReturn(completed);
 
         mockMvc.perform(patch("/tasks/{id}/complete", TASK_ID)
                         .with(csrf())
