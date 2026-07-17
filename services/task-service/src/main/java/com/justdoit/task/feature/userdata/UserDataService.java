@@ -4,7 +4,7 @@ import com.justdoit.task.feature.category.Category;
 import com.justdoit.task.feature.category.CategoryRepository;
 import com.justdoit.task.feature.task.Task;
 import com.justdoit.task.feature.task.TaskRepository;
-import com.justdoit.task.feature.usernote.UserNoteRepository;
+import com.justdoit.task.feature.note.NoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,12 +18,12 @@ public class UserDataService {
 
     private final TaskRepository taskRepository;
     private final CategoryRepository categoryRepository;
-    private final UserNoteRepository userNoteRepository;
+    private final NoteRepository noteRepository;
 
     /**
      * Remove todos os dados do usuário neste serviço: tarefas (com cascata para
-     * subtarefas, notas, timers, sessões de foco, ciclo, etc.), categorias e o
-     * bloco de anotações. Usado quando a conta é excluída no auth-service.
+     * subtarefas, notas de tarefa, timers, sessões de foco, ciclo, etc.),
+     * categorias e as anotações. Usado quando a conta é excluída no auth-service.
      */
     @Transactional
     public void deleteAllForUser(UUID userId) {
@@ -35,6 +35,6 @@ public class UserDataService {
         List<Category> categories = categoryRepository.findByUserId(userId);
         if (!categories.isEmpty()) categoryRepository.deleteAll(categories);
 
-        userNoteRepository.findByUserId(userId).ifPresent(userNoteRepository::delete);
+        noteRepository.deleteByUserId(userId);
     }
 }
