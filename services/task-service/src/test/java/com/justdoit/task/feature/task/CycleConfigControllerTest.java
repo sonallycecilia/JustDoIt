@@ -1,7 +1,8 @@
 package com.justdoit.task.feature.task;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.justdoit.task.config.JwtUtil;
+import com.justdoit.common.security.JwtValidator;
+import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
 import com.justdoit.task.shared.CycleConfigRequest;
 import com.justdoit.task.shared.CycleConfigResponse;
 import com.justdoit.task.shared.CycleType;
@@ -11,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
@@ -29,7 +29,7 @@ class CycleConfigControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private CycleConfigService cycleConfigService;
-    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private JwtValidator jwtValidator;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID TASK_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -37,11 +37,9 @@ class CycleConfigControllerTest {
 
     @BeforeEach
     void setUp() {
-        when(jwtUtil.extractUserId(anyString())).thenReturn(USER_ID);
     }
 
     @Test
-    @WithMockUser
     void getCycleConfig_returnsOk() throws Exception {
         CycleConfigResponse response = new CycleConfigResponse(
                 CONFIG_ID, TASK_ID, CycleType.WEEKLY,
@@ -50,7 +48,7 @@ class CycleConfigControllerTest {
         when(cycleConfigService.getCycleConfig(TASK_ID, USER_ID)).thenReturn(response);
 
         mockMvc.perform(get("/tasks/{taskId}/cycle-config", TASK_ID)
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(CONFIG_ID.toString()))
                 .andExpect(jsonPath("$.cycleType").value("WEEKLY"))
@@ -58,18 +56,16 @@ class CycleConfigControllerTest {
     }
 
     @Test
-    @WithMockUser
     void getCycleConfig_whenNotFound_returns404() throws Exception {
         when(cycleConfigService.getCycleConfig(TASK_ID, USER_ID))
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(get("/tasks/{taskId}/cycle-config", TASK_ID)
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @WithMockUser
     void upsertCycleConfig_returnsOk() throws Exception {
         CycleConfigRequest request = new CycleConfigRequest(CycleType.DAILY, LocalDate.of(2025, 6, 1), null, null, null, null, null, null);
         CycleConfigResponse response = new CycleConfigResponse(
@@ -79,7 +75,7 @@ class CycleConfigControllerTest {
 
         mockMvc.perform(put("/tasks/{taskId}/cycle-config", TASK_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -88,13 +84,12 @@ class CycleConfigControllerTest {
     }
 
     @Test
-    @WithMockUser
     void upsertCycleConfig_withNullCycleType_returnsBadRequest() throws Exception {
         CycleConfigRequest request = new CycleConfigRequest(null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/tasks/{taskId}/cycle-config", TASK_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());

@@ -1,12 +1,12 @@
 package com.justdoit.task.feature.task;
 
-import com.justdoit.task.config.JwtUtil;
+import com.justdoit.common.security.JwtValidator;
+import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
 import com.justdoit.task.shared.TaskReportResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -24,17 +24,15 @@ class TaskReportControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private TaskReportService taskReportService;
-    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private JwtValidator jwtValidator;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @BeforeEach
     void setUp() {
-        when(jwtUtil.extractUserId(anyString())).thenReturn(USER_ID);
     }
 
     @Test
-    @WithMockUser
     void getReport_returnsAggregates() throws Exception {
         LocalDate from = LocalDate.of(2026, 6, 29);
         LocalDate to = from.plusDays(6);
@@ -45,7 +43,7 @@ class TaskReportControllerTest {
         mockMvc.perform(get("/tasks/report")
                         .param("from", "2026-06-29")
                         .param("to", "2026-07-05")
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalTasks").value(5))
                 .andExpect(jsonPath("$.completedTasks").value(3))
@@ -54,7 +52,6 @@ class TaskReportControllerTest {
     }
 
     @Test
-    @WithMockUser
     void getReport_invalidRange_returnsBadRequest() throws Exception {
         when(taskReportService.getReport(eq(USER_ID), any(), any()))
                 .thenThrow(new IllegalArgumentException("Período inválido"));
@@ -62,15 +59,14 @@ class TaskReportControllerTest {
         mockMvc.perform(get("/tasks/report")
                         .param("from", "2026-07-05")
                         .param("to", "2026-06-29")
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    @WithMockUser
     void getReport_missingParams_returnsBadRequest() throws Exception {
         mockMvc.perform(get("/tasks/report")
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isBadRequest());
     }
 }

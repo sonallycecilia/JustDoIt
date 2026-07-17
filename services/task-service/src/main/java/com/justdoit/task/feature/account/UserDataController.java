@@ -1,9 +1,8 @@
 package com.justdoit.task.feature.account;
 
-import com.justdoit.task.config.JwtUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,11 +20,9 @@ import java.util.UUID;
 public class UserDataController {
 
     private final UserDataService userDataService;
-    private final JwtUtil jwtUtil;
 
     @DeleteMapping
-    public ResponseEntity<Void> deleteMyData(HttpServletRequest request) {
-        UUID userId = jwtUtil.extractUserId(request.getHeader("Authorization").substring(7));
+    public ResponseEntity<Void> deleteMyData(@AuthenticationPrincipal UUID userId) {
         userDataService.deleteAllForUser(userId);
         return ResponseEntity.noContent().build();
     }

@@ -1,4 +1,4 @@
-package com.justdoit.task.config;
+package com.justdoit.common.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -21,17 +21,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * segredo mas sem esses claims são rejeitados — é isso que impede outro serviço
  * (ou outro tipo de token) de se passar por access token.
  */
-class JwtUtilTest {
+class JwtValidatorTest {
 
     private static final String SECRET =
             "test-secret-key-please-change-256-bits-minimum-0123456789abcdef";
 
-    private JwtUtil jwtUtil;
+    private JwtValidator jwtValidator;
 
     @BeforeEach
     void setUp() {
-        jwtUtil = new JwtUtil();
-        ReflectionTestUtils.setField(jwtUtil, "secret", SECRET);
+        jwtValidator = new JwtValidator();
+        ReflectionTestUtils.setField(jwtValidator, "secret", SECRET);
     }
 
     /** Espelha fielmente o JwtUtil.generateAccessToken do auth-service. */
@@ -53,21 +53,21 @@ class JwtUtilTest {
     @Test
     @DisplayName("aceita o access token no formato emitido pelo auth-service")
     void deveAceitarTokenDoAuthService() {
-        assertThat(jwtUtil.validateToken(tokenComoOAuthServiceEmite(b -> b))).isTrue();
+        assertThat(jwtValidator.validateToken(tokenComoOAuthServiceEmite(b -> b))).isTrue();
     }
 
     @Test
     @DisplayName("rejeita JWT com o mesmo segredo mas sem type=access")
     void deveRejeitarToken_semTypeAccess() {
         String token = tokenComoOAuthServiceEmite(b -> b.claim("type", "outro"));
-        assertThat(jwtUtil.validateToken(token)).isFalse();
+        assertThat(jwtValidator.validateToken(token)).isFalse();
     }
 
     @Test
     @DisplayName("rejeita JWT com o mesmo segredo mas com issuer diferente")
     void deveRejeitarToken_comIssuerErrado() {
         String token = tokenComoOAuthServiceEmite(b -> b.issuer("outro-emissor"));
-        assertThat(jwtUtil.validateToken(token)).isFalse();
+        assertThat(jwtValidator.validateToken(token)).isFalse();
     }
 
     @Test
@@ -83,7 +83,7 @@ class JwtUtilTest {
                 .expiration(new Date(System.currentTimeMillis() + 900_000))
                 .signWith(key)
                 .compact();
-        assertThat(jwtUtil.validateToken(token)).isFalse();
+        assertThat(jwtValidator.validateToken(token)).isFalse();
     }
 
     @Test
@@ -96,6 +96,6 @@ class JwtUtilTest {
                 .expiration(new Date(System.currentTimeMillis() + 900_000))
                 .signWith(key)
                 .compact();
-        assertThat(jwtUtil.validateToken(token)).isFalse();
+        assertThat(jwtValidator.validateToken(token)).isFalse();
     }
 }

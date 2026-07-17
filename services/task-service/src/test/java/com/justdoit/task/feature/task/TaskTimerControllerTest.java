@@ -1,7 +1,8 @@
 package com.justdoit.task.feature.task;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.justdoit.task.config.JwtUtil;
+import com.justdoit.common.security.JwtValidator;
+import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
 import com.justdoit.task.shared.TaskTimerLogRequest;
 import com.justdoit.task.shared.TaskTimerRequest;
 import com.justdoit.task.shared.TaskTimerResponse;
@@ -11,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
@@ -28,7 +28,7 @@ class TaskTimerControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private TaskTimerService timerService;
-    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private JwtValidator jwtValidator;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID TASK_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -36,17 +36,15 @@ class TaskTimerControllerTest {
 
     @BeforeEach
     void setUp() {
-        when(jwtUtil.extractUserId(anyString())).thenReturn(USER_ID);
     }
 
     @Test
-    @WithMockUser
     void getTimer_returnsOk() throws Exception {
         TaskTimerResponse response = new TaskTimerResponse(TIMER_ID, TASK_ID, 30, 0L, null);
         when(timerService.getTimer(TASK_ID, USER_ID)).thenReturn(response);
 
         mockMvc.perform(get("/tasks/{taskId}/timer", TASK_ID)
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(TIMER_ID.toString()))
                 .andExpect(jsonPath("$.estimatedMinutes").value(30))
@@ -54,17 +52,15 @@ class TaskTimerControllerTest {
     }
 
     @Test
-    @WithMockUser
     void getTimer_whenNotFound_returns404() throws Exception {
         when(timerService.getTimer(TASK_ID, USER_ID)).thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(get("/tasks/{taskId}/timer", TASK_ID)
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @WithMockUser
     void upsertTimer_returnsOk() throws Exception {
         TaskTimerRequest request = new TaskTimerRequest(45, null, null);
         TaskTimerResponse response = new TaskTimerResponse(TIMER_ID, TASK_ID, 45, 0L, null);
@@ -72,7 +68,7 @@ class TaskTimerControllerTest {
 
         mockMvc.perform(put("/tasks/{taskId}/timer", TASK_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -80,7 +76,6 @@ class TaskTimerControllerTest {
     }
 
     @Test
-    @WithMockUser
     void logSeconds_returnsOk() throws Exception {
         TaskTimerLogRequest request = new TaskTimerLogRequest(300L);
         TaskTimerResponse response = new TaskTimerResponse(TIMER_ID, TASK_ID, 30, 300L, null);
@@ -88,7 +83,7 @@ class TaskTimerControllerTest {
 
         mockMvc.perform(patch("/tasks/{taskId}/timer/log", TASK_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -96,14 +91,13 @@ class TaskTimerControllerTest {
     }
 
     @Test
-    @WithMockUser
     void logSeconds_whenTimerNotFound_returns404() throws Exception {
         when(timerService.logSeconds(eq(TASK_ID), anyLong(), eq(USER_ID)))
                 .thenThrow(new IllegalArgumentException("timer not found"));
 
         mockMvc.perform(patch("/tasks/{taskId}/timer/log", TASK_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TaskTimerLogRequest(60L))))
                 .andExpect(status().isNotFound());

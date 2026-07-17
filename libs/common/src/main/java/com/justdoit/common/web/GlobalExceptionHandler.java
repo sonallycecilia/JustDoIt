@@ -1,4 +1,4 @@
-package com.justdoit.task.shared;
+package com.justdoit.common.web;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;

@@ -1,7 +1,8 @@
 package com.justdoit.task.feature.task;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.justdoit.task.config.JwtUtil;
+import com.justdoit.common.security.JwtValidator;
+import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
 import com.justdoit.task.shared.TaskNoteRequest;
 import com.justdoit.task.shared.TaskNoteResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -28,7 +28,7 @@ class TaskNoteControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private TaskNoteService noteService;
-    @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private JwtValidator jwtValidator;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID TASK_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -36,35 +36,31 @@ class TaskNoteControllerTest {
 
     @BeforeEach
     void setUp() {
-        when(jwtUtil.extractUserId(anyString())).thenReturn(USER_ID);
     }
 
     @Test
-    @WithMockUser
     void getNote_returnsOk() throws Exception {
         TaskNoteResponse response = new TaskNoteResponse(
                 NOTE_ID, TASK_ID, "My note content", LocalDateTime.now(), LocalDateTime.now());
         when(noteService.getNote(TASK_ID, USER_ID)).thenReturn(response);
 
         mockMvc.perform(get("/tasks/{taskId}/note", TASK_ID)
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(NOTE_ID.toString()))
                 .andExpect(jsonPath("$.content").value("My note content"));
     }
 
     @Test
-    @WithMockUser
     void getNote_whenNotFound_returns404() throws Exception {
         when(noteService.getNote(TASK_ID, USER_ID)).thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(get("/tasks/{taskId}/note", TASK_ID)
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @WithMockUser
     void upsertNote_returnsOk() throws Exception {
         TaskNoteRequest request = new TaskNoteRequest("Updated content");
         TaskNoteResponse response = new TaskNoteResponse(
@@ -73,7 +69,7 @@ class TaskNoteControllerTest {
 
         mockMvc.perform(put("/tasks/{taskId}/note", TASK_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -81,11 +77,10 @@ class TaskNoteControllerTest {
     }
 
     @Test
-    @WithMockUser
     void upsertNote_withBlankContent_returnsBadRequest() throws Exception {
         mockMvc.perform(put("/tasks/{taskId}/note", TASK_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TaskNoteRequest(""))))
                 .andExpect(status().isBadRequest());

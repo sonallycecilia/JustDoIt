@@ -1,4 +1,4 @@
-package com.justdoit.task.config;
+package com.justdoit.common.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -14,11 +14,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Autentica cada requisição a partir do access token no header Authorization.
+ * Ao validar, coloca o UUID do usuário como principal no SecurityContext — por
+ * isso os controllers podem receber {@code @AuthenticationPrincipal UUID userId}
+ * sem reprocessar o token.
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
+    private final JwtValidator jwtValidator;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -30,9 +36,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
         String token = authHeader.substring(7);
-        if (jwtUtil.validateToken(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (jwtValidator.validateToken(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    jwtUtil.extractUserId(token), null, List.of()
+                    jwtValidator.extractUserId(token), null, List.of()
             );
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authToken);
