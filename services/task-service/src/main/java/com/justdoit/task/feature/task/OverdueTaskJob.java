@@ -1,4 +1,5 @@
 package com.justdoit.task.feature.task;
+import com.justdoit.task.integration.NotificationClient;
 
 import com.justdoit.task.shared.TaskStatus;
 import lombok.RequiredArgsConstructor;

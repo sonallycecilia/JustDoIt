@@ -1,4 +1,9 @@
 package com.justdoit.task.feature.task;
+import com.justdoit.task.feature.cycle.CycleConfig;
+import com.justdoit.task.feature.focussession.FocusSession;
+import com.justdoit.task.feature.tasknote.TaskNote;
+import com.justdoit.task.feature.timer.TaskTimer;
+import com.justdoit.task.feature.moduleconfig.TaskModuleConfig;
 
 import com.justdoit.task.shared.Priority;
 import com.justdoit.task.shared.TaskStatus;
