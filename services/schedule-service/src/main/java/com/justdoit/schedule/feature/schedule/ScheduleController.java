@@ -1,13 +1,12 @@
 package com.justdoit.schedule.feature.schedule;
 
 import com.justdoit.schedule.shared.*;
-import com.justdoit.schedule.config.JwtUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -19,12 +18,10 @@ import java.util.UUID;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
-    private final JwtUtil jwtUtil;
 
     @PostMapping("/time-blocks")
     public ResponseEntity<TimeBlockResponse> createTimeBlock(@RequestBody @Valid TimeBlockRequest request,
-                                                             HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+                                                             @AuthenticationPrincipal UUID userId) {
         return ResponseEntity.status(HttpStatus.CREATED).body(scheduleService.createTimeBlock(request, userId));
     }
 
@@ -33,8 +30,7 @@ public class ScheduleController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+            @AuthenticationPrincipal UUID userId) {
         if (from != null && to != null) {
             return ResponseEntity.ok(scheduleService.getTimeBlocksBetween(from, to, userId));
         }
@@ -47,8 +43,7 @@ public class ScheduleController {
     @PutMapping("/time-blocks/{id}")
     public ResponseEntity<TimeBlockResponse> updateTimeBlock(@PathVariable UUID id,
                                                              @RequestBody @Valid TimeBlockRequest request,
-                                                             HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+                                                             @AuthenticationPrincipal UUID userId) {
         try {
             return ResponseEntity.ok(scheduleService.updateTimeBlock(id, request, userId));
         } catch (IllegalArgumentException e) {
@@ -57,8 +52,7 @@ public class ScheduleController {
     }
 
     @DeleteMapping("/time-blocks/{id}")
-    public ResponseEntity<Void> deleteTimeBlock(@PathVariable UUID id, HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+    public ResponseEntity<Void> deleteTimeBlock(@PathVariable UUID id, @AuthenticationPrincipal UUID userId) {
         try {
             scheduleService.deleteTimeBlock(id, userId);
             return ResponseEntity.noContent().build();
@@ -69,15 +63,13 @@ public class ScheduleController {
 
     @PostMapping("/weekly-plans")
     public ResponseEntity<WeeklyPlanResponse> createWeeklyPlan(@RequestBody @Valid WeeklyPlanRequest request,
-                                                               HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+                                                               @AuthenticationPrincipal UUID userId) {
         return ResponseEntity.status(HttpStatus.CREATED).body(scheduleService.createWeeklyPlan(request, userId));
     }
 
     @PatchMapping("/weekly-plans/{id}/close")
     public ResponseEntity<WeeklyPlanResponse> closeWeeklyPlan(@PathVariable UUID id,
-                                                              HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+                                                              @AuthenticationPrincipal UUID userId) {
         try {
             return ResponseEntity.ok(scheduleService.closeWeeklyPlan(id, userId));
         } catch (IllegalArgumentException e) {
@@ -87,8 +79,7 @@ public class ScheduleController {
 
     @PostMapping("/weekly-plans/{id}/summary")
     public ResponseEntity<WeeklySummaryResponse> generateWeeklySummary(@PathVariable UUID id,
-                                                                       HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+                                                                       @AuthenticationPrincipal UUID userId) {
         try {
             return ResponseEntity.ok(scheduleService.generateWeeklySummary(id, userId));
         } catch (IllegalArgumentException e) {
@@ -98,17 +89,11 @@ public class ScheduleController {
 
     @GetMapping("/weekly-plans/{id}/summary")
     public ResponseEntity<WeeklySummaryResponse> getWeeklySummary(@PathVariable UUID id,
-                                                                  HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+                                                                  @AuthenticationPrincipal UUID userId) {
         try {
             return ResponseEntity.ok(scheduleService.generateWeeklySummary(id, userId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
-    }
-
-    private UUID extractUserId(HttpServletRequest request) {
-        String token = request.getHeader("Authorization").substring(7);
-        return jwtUtil.extractUserId(token);
     }
 }
