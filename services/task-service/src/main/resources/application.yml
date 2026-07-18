@@ -24,5 +24,8 @@ jwt:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
-  biological-ceiling:
-    sleep-minutes: ${BIOLOGICAL_CEILING_SLEEP_MINUTES:480}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
+  # Segredo do endpoint interno do notification-service (fluxos sem usuário,
+  # ex.: job de tarefas atrasadas). Vazio = job marca OVERDUE mas não notifica.
+  internal-token: ${INTERNAL_API_TOKEN:}

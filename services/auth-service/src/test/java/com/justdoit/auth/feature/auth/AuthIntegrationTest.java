@@ -65,7 +65,7 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(VALID_REGISTER)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Email already registered"));
+                .andExpect(jsonPath("$.error").value("Email já cadastrado"));
     }
 
     @Test
@@ -110,7 +110,7 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new LoginRequest("naoexiste@test.com", PASSWORD))))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Invalid credentials"));
+                .andExpect(jsonPath("$.error").value("Credenciais inválidas"));
     }
 
     @Test
@@ -125,7 +125,7 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new LoginRequest(EMAIL, "senha_errada"))))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Invalid credentials"));
+                .andExpect(jsonPath("$.error").value("Credenciais inválidas"));
     }
 
     @Test
@@ -245,7 +245,42 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RefreshRequest("token-que-nao-existe"))))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Invalid refresh token"));
+                .andExpect(jsonPath("$.error").value("Refresh token inválido"));
+    }
+
+    @Test
+    @DisplayName("refresh: reuso de refresh token já rotacionado revoga todas as sessões")
+    void refresh_deveRevogarTodasAsSessoes_quandoTokenRotacionadoForReusado() throws Exception {
+        MvcResult registerResult = mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(VALID_REGISTER)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String refreshToken1 = objectMapper.readTree(registerResult.getResponse().getContentAsString())
+                .get("refreshToken").asText();
+
+        // 1º uso: rotação normal — emite o refresh token 2.
+        MvcResult refreshResult = mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken1))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String refreshToken2 = objectMapper.readTree(refreshResult.getResponse().getContentAsString())
+                .get("refreshToken").asText();
+
+        // Reuso do token 1 (cenário de roubo): 401 e revogação de TODAS as sessões.
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken1))))
+                .andExpect(status().isUnauthorized());
+
+        // O token 2 (ainda não usado) também deve ter sido revogado.
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken2))))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

@@ -1,6 +1,7 @@
 // src/main/java/com/justdoit/task/config/WebSecurityConfig.java
 package com.justdoit.task.config;
 
+import com.justdoit.common.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

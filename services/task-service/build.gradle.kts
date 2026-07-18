@@ -18,6 +18,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":libs:common"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -30,6 +31,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
+    testImplementation(testFixtures(project(":libs:common")))
+    testRuntimeOnly("com.h2database:h2")
     testCompileOnly("org.projectlombok:lombok:1.18.36")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.36")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

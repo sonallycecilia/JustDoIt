@@ -1,5 +1,8 @@
 .gradle/
 build/
+# Saída de compilação das IDEs (IntelliJ: out/, Eclipse/VS Code: bin/)
+out/
+bin/
 .idea/
 .vscode/
 .claude/
@@ -21,3 +24,6 @@ build/
 *.keystore
 secrets/
 **/secrets/
+# Segredos de producao documentados localmente (removido do indice em 2026-07-03;
+# o historico ainda precisa ser expurgado com git filter-repo)
+docs/secrets.md

@@ -1,15 +1,15 @@
 package com.justdoit.notification.feature.notification;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.justdoit.notification.config.JwtUtil;
+import com.justdoit.common.security.JwtValidator;
+import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
 import com.justdoit.notification.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -27,8 +27,8 @@ class NotificationControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-    @MockBean private NotificationService notificationService;
-    @MockBean private JwtUtil jwtUtil;
+    @MockitoBean private NotificationService notificationService;
+    @MockitoBean private JwtValidator jwtValidator;
 
     private static final UUID USER_ID  = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID NOTIF_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -38,14 +38,12 @@ class NotificationControllerTest {
 
     @BeforeEach
     void setUp() {
-        when(jwtUtil.extractUserId(anyString())).thenReturn(USER_ID);
         notifResponse = new NotificationResponse(NOTIF_ID, USER_ID, null,
                 NotificationType.TASK_COMPLETED, "Task done", "Your task was completed",
                 false, LocalDateTime.now());
     }
 
     @Test
-    @WithMockUser
     void createNotification_returnsCreated() throws Exception {
         CreateNotificationRequest request = new CreateNotificationRequest(
                 null, NotificationType.TASK_COMPLETED, "Task done", "Your task was completed");
@@ -53,7 +51,7 @@ class NotificationControllerTest {
 
         mockMvc.perform(post("/notifications")
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -63,11 +61,10 @@ class NotificationControllerTest {
     }
 
     @Test
-    @WithMockUser
     void createNotification_missingTitle_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/notifications")
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new CreateNotificationRequest(null, NotificationType.TASK_COMPLETED, "", "msg"))))
@@ -75,29 +72,26 @@ class NotificationControllerTest {
     }
 
     @Test
-    @WithMockUser
     void getAll_returnsOk() throws Exception {
         when(notificationService.getAllByUser(USER_ID)).thenReturn(List.of(notifResponse));
 
         mockMvc.perform(get("/notifications")
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(NOTIF_ID.toString()));
     }
 
     @Test
-    @WithMockUser
     void getUnread_returnsOk() throws Exception {
         when(notificationService.getUnreadByUser(USER_ID)).thenReturn(List.of(notifResponse));
 
         mockMvc.perform(get("/notifications/unread")
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].read").value(false));
     }
 
     @Test
-    @WithMockUser
     void markAsRead_returnsOk() throws Exception {
         NotificationResponse readResponse = new NotificationResponse(NOTIF_ID, USER_ID, null,
                 NotificationType.TASK_COMPLETED, "Task done", "Your task was completed",
@@ -106,38 +100,35 @@ class NotificationControllerTest {
 
         mockMvc.perform(patch("/notifications/{id}/read", NOTIF_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.read").value(true));
     }
 
     @Test
-    @WithMockUser
     void markAsRead_notFound_returns404() throws Exception {
         when(notificationService.markAsRead(NOTIF_ID, USER_ID))
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(patch("/notifications/{id}/read", NOTIF_ID)
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @WithMockUser
     void getPreferences_returnsOk() throws Exception {
         NotificationPreferenceResponse prefResponse = new NotificationPreferenceResponse(
                 PREF_ID, USER_ID, true, true, true);
         when(notificationService.getOrCreatePreference(USER_ID)).thenReturn(prefResponse);
 
         mockMvc.perform(get("/notifications/preferences")
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.notifyOnComplete").value(true));
     }
 
     @Test
-    @WithMockUser
     void updatePreferences_returnsOk() throws Exception {
         NotificationPreferenceRequest request = new NotificationPreferenceRequest(false, true, true);
         NotificationPreferenceResponse prefResponse = new NotificationPreferenceResponse(
@@ -146,7 +137,7 @@ class NotificationControllerTest {
 
         mockMvc.perform(put("/notifications/preferences")
                         .with(csrf())
-                        .header("Authorization", "Bearer mock-token")
+                        .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

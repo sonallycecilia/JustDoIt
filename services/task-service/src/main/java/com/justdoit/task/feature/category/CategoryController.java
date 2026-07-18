@@ -2,12 +2,11 @@ package com.justdoit.task.feature.category;
 
 import com.justdoit.task.shared.CategoryRequest;
 import com.justdoit.task.shared.CategoryResponse;
-import com.justdoit.task.config.JwtUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,17 +18,14 @@ import java.util.UUID;
 public class CategoryController {
 
     private final CategoryService categoryService;
-    private final JwtUtil jwtUtil;
 
     @GetMapping
-    public ResponseEntity<List<CategoryResponse>> getAll(HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+    public ResponseEntity<List<CategoryResponse>> getAll(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(categoryService.getAllByUser(userId));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CategoryResponse> getById(@PathVariable UUID id, HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+    public ResponseEntity<CategoryResponse> getById(@PathVariable UUID id, @AuthenticationPrincipal UUID userId) {
         try {
             return ResponseEntity.ok(categoryService.getById(id, userId));
         } catch (IllegalArgumentException e) {
@@ -39,16 +35,14 @@ public class CategoryController {
 
     @PostMapping
     public ResponseEntity<CategoryResponse> create(@RequestBody @Valid CategoryRequest request,
-                                                   HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+                                                   @AuthenticationPrincipal UUID userId) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.create(request, userId));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<CategoryResponse> update(@PathVariable UUID id,
                                                    @RequestBody @Valid CategoryRequest request,
-                                                   HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+                                                   @AuthenticationPrincipal UUID userId) {
         try {
             return ResponseEntity.ok(categoryService.update(id, request, userId));
         } catch (IllegalArgumentException e) {
@@ -57,18 +51,12 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id, HttpServletRequest httpRequest) {
-        UUID userId = extractUserId(httpRequest);
+    public ResponseEntity<Void> delete(@PathVariable UUID id, @AuthenticationPrincipal UUID userId) {
         try {
             categoryService.delete(id, userId);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
-    }
-
-    private UUID extractUserId(HttpServletRequest request) {
-        String token = request.getHeader("Authorization").substring(7);
-        return jwtUtil.extractUserId(token);
     }
 }
