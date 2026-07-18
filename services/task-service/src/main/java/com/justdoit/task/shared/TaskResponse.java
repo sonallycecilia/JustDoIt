@@ -11,6 +11,7 @@ public record TaskResponse(
     UUID categoryId,
     String title,
     String description,
+    Integer estimatedMinutes,
     TaskStatus status,
     Priority priority,
     LocalDate dueDate,

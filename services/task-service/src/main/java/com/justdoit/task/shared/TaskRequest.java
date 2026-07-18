@@ -1,6 +1,7 @@
 package com.justdoit.task.shared;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -10,6 +11,8 @@ import java.util.UUID;
 public record TaskRequest(
     @NotBlank @Size(max = 200) String title,
     @Size(max = 5000) String description,
+    @PositiveOrZero(message = "A estimativa de tempo não pode ser negativa")
+    Integer estimatedMinutes,
     UUID categoryId,
     Priority priority,
     LocalDate dueDate,

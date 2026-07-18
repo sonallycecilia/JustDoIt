@@ -53,6 +53,9 @@ public class Task {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "estimated_minutes", nullable = true)
+    private Integer estimatedMinutes;
+
     @Column(name = "due_date")
     private LocalDate dueDate;
 
