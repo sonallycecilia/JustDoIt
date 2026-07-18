@@ -6,7 +6,6 @@ bin/
 .idea/
 .vscode/
 .claude/
-.docs/
 
 # Segredos / variaveis de ambiente (NUNCA commitar)
 .env
@@ -26,4 +25,4 @@ secrets/
 **/secrets/
 # Segredos de producao documentados localmente (removido do indice em 2026-07-03;
 # o historico ainda precisa ser expurgado com git filter-repo)
-docs/secrets.md
+docs/
