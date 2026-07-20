@@ -1,5 +1,7 @@
 package com.justdoit.schedule.feature.schedule;
 
+import com.justdoit.schedule.integration.TaskReportClient;
+import com.justdoit.schedule.integration.TaskReportClient.TaskReport;
 import com.justdoit.schedule.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,8 +26,10 @@ class ScheduleServiceTest {
     @Mock private TimeBlockRepository timeBlockRepository;
     @Mock private WeeklyPlanRepository weeklyPlanRepository;
     @Mock private WeeklySummaryRepository weeklySummaryRepository;
+    @Mock private TaskReportClient taskReportClient;
     @InjectMocks private ScheduleService service;
 
+    private static final String AUTH_HEADER = "Bearer mock-token";
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID PLAN_ID  = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final UUID BLOCK_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -111,28 +115,48 @@ class ScheduleServiceTest {
     }
 
     @Test
-    void generateWeeklySummary_calculatesTotals() {
-        WeeklySummary summary = WeeklySummary.builder()
-                .id(UUID.randomUUID()).weeklyPlan(weeklyPlan)
-                .totalEstimatedMinutes(60).totalTasks(1)
-                .build();
+    void generateWeeklySummary_semRelatorio_usaSoDadosLocais() {
         when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
         when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, TODAY, TODAY.plusDays(6)))
                 .thenReturn(List.of(timeBlock));
         when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.empty());
-        when(weeklySummaryRepository.save(any())).thenReturn(summary);
+        when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6))).thenReturn(Optional.empty());
+        when(weeklySummaryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        WeeklySummaryResponse result = service.generateWeeklySummary(PLAN_ID, USER_ID);
+        WeeklySummaryResponse result = service.generateWeeklySummary(PLAN_ID, USER_ID, AUTH_HEADER);
 
         assertEquals(60, result.totalEstimatedMinutes());
         assertEquals(1, result.totalTasks());
+        assertEquals(0L, result.totalActualSeconds());
+        assertEquals(0, result.completedTasks());
+    }
+
+    @Test
+    void generateWeeklySummary_comRelatorio_preencheDadosReais() {
+        when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
+        when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, TODAY, TODAY.plusDays(6)))
+                .thenReturn(List.of(timeBlock));
+        when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.empty());
+        when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6)))
+                .thenReturn(Optional.of(new TaskReport(5, 3, 4_500L)));
+        when(weeklySummaryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        WeeklySummaryResponse result = service.generateWeeklySummary(PLAN_ID, USER_ID, AUTH_HEADER);
+
+        assertEquals(60, result.totalEstimatedMinutes());
+        assertEquals(5, result.totalTasks());
+        assertEquals(3, result.completedTasks());
+        assertEquals(4_500L, result.totalActualSeconds());
+        // 4500s executados - 60min estimados (3600s) = 900s de desvio
+        assertEquals(900L, result.deviationSeconds());
     }
 
     @Test
     void generateWeeklySummary_planNotFound_throwsException() {
         when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> service.generateWeeklySummary(PLAN_ID, USER_ID));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.generateWeeklySummary(PLAN_ID, USER_ID, AUTH_HEADER));
     }
 
     @Test

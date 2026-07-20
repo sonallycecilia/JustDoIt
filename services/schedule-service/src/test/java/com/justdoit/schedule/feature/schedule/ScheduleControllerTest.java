@@ -124,11 +124,12 @@ class ScheduleControllerTest {
     void generateWeeklySummary_returnsOk() throws Exception {
         WeeklySummaryResponse response = new WeeklySummaryResponse(
                 UUID.randomUUID(), PLAN_ID, 60, null, null, null, 1);
-        when(scheduleService.generateWeeklySummary(PLAN_ID, USER_ID)).thenReturn(response);
+        when(scheduleService.generateWeeklySummary(eq(PLAN_ID), eq(USER_ID), anyString())).thenReturn(response);
 
         mockMvc.perform(post("/weekly-plans/{id}/summary", PLAN_ID)
                         .with(csrf())
-                        .with(authenticatedUser(USER_ID)))
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalEstimatedMinutes").value(60))
                 .andExpect(jsonPath("$.totalTasks").value(1));
@@ -136,12 +137,13 @@ class ScheduleControllerTest {
 
     @Test
     void generateWeeklySummary_notFound_returns404() throws Exception {
-        when(scheduleService.generateWeeklySummary(PLAN_ID, USER_ID))
+        when(scheduleService.generateWeeklySummary(eq(PLAN_ID), eq(USER_ID), anyString()))
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(post("/weekly-plans/{id}/summary", PLAN_ID)
                         .with(csrf())
-                        .with(authenticatedUser(USER_ID)))
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNotFound());
     }
 
@@ -149,10 +151,11 @@ class ScheduleControllerTest {
     void getWeeklySummary_returnsOk() throws Exception {
         WeeklySummaryResponse response = new WeeklySummaryResponse(
                 UUID.randomUUID(), PLAN_ID, 120, null, null, null, 2);
-        when(scheduleService.generateWeeklySummary(PLAN_ID, USER_ID)).thenReturn(response);
+        when(scheduleService.generateWeeklySummary(eq(PLAN_ID), eq(USER_ID), anyString())).thenReturn(response);
 
         mockMvc.perform(get("/weekly-plans/{id}/summary", PLAN_ID)
-                        .with(authenticatedUser(USER_ID)))
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalTasks").value(2));
     }

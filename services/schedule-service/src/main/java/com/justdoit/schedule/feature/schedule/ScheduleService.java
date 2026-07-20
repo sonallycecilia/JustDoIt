@@ -1,5 +1,7 @@
 package com.justdoit.schedule.feature.schedule;
 
+import com.justdoit.schedule.integration.TaskReportClient;
+import com.justdoit.schedule.integration.TaskReportClient.TaskReport;
 import com.justdoit.schedule.shared.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -7,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -16,6 +19,7 @@ public class ScheduleService {
     private final TimeBlockRepository timeBlockRepository;
     private final WeeklyPlanRepository weeklyPlanRepository;
     private final WeeklySummaryRepository weeklySummaryRepository;
+    private final TaskReportClient taskReportClient;
 
     @Transactional
     public TimeBlockResponse createTimeBlock(TimeBlockRequest request, UUID userId) {
@@ -81,7 +85,7 @@ public class ScheduleService {
     }
 
     @Transactional
-    public WeeklySummaryResponse generateWeeklySummary(UUID planId, UUID userId) {
+    public WeeklySummaryResponse generateWeeklySummary(UUID planId, UUID userId, String authorizationHeader) {
         WeeklyPlan plan = weeklyPlanRepository.findByIdAndUserId(planId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Weekly plan not found"));
 
@@ -97,7 +101,21 @@ public class ScheduleService {
                 .orElse(WeeklySummary.builder().weeklyPlan(plan).build());
 
         summary.setTotalEstimatedMinutes(totalEstimated);
-        summary.setTotalTasks(blocks.size());
+
+        // Dados reais (concluídas e tempo executado) vêm do task-service, com o
+        // token do próprio usuário. Sem resposta, o resumo sai só com o planejado
+        // local e a contagem de blocos — nunca falha por causa do outro serviço.
+        Optional<TaskReport> report = taskReportClient.getReport(
+                authorizationHeader, plan.getWeekStartDate(), plan.getWeekEndDate());
+        if (report.isPresent()) {
+            TaskReport r = report.get();
+            summary.setTotalTasks((int) r.totalTasks());
+            summary.setCompletedTasks((int) r.completedTasks());
+            summary.setTotalActualSeconds(r.totalActualSeconds());
+            summary.setDeviationSeconds(r.totalActualSeconds() - totalEstimated * 60L);
+        } else {
+            summary.setTotalTasks(blocks.size());
+        }
 
         return toWeeklySummaryResponse(weeklySummaryRepository.save(summary));
     }

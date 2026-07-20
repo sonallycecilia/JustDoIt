@@ -4,6 +4,7 @@ import com.justdoit.schedule.shared.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -79,9 +80,10 @@ public class ScheduleController {
 
     @PostMapping("/weekly-plans/{id}/summary")
     public ResponseEntity<WeeklySummaryResponse> generateWeeklySummary(@PathVariable UUID id,
-                                                                       @AuthenticationPrincipal UUID userId) {
+                                                                       @AuthenticationPrincipal UUID userId,
+                                                                       @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader) {
         try {
-            return ResponseEntity.ok(scheduleService.generateWeeklySummary(id, userId));
+            return ResponseEntity.ok(scheduleService.generateWeeklySummary(id, userId, authHeader));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -89,9 +91,10 @@ public class ScheduleController {
 
     @GetMapping("/weekly-plans/{id}/summary")
     public ResponseEntity<WeeklySummaryResponse> getWeeklySummary(@PathVariable UUID id,
-                                                                  @AuthenticationPrincipal UUID userId) {
+                                                                  @AuthenticationPrincipal UUID userId,
+                                                                  @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader) {
         try {
-            return ResponseEntity.ok(scheduleService.generateWeeklySummary(id, userId));
+            return ResponseEntity.ok(scheduleService.generateWeeklySummary(id, userId, authHeader));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
