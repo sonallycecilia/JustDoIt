@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -31,6 +32,9 @@ class AuthIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     private static final String EMAIL = "integration@test.com";
     private static final String PASSWORD = "senha123";
@@ -270,6 +274,11 @@ class AuthIntegrationTest {
         String refreshToken2 = objectMapper.readTree(refreshResult.getResponse().getContentAsString())
                 .get("refreshToken").asText();
 
+        // Envelhece a rotação para além da janela de graça: dentro dela o reuso é
+        // tratado como corrida do cliente legítimo (ver o teste seguinte), e é só
+        // fora dela que ele caracteriza roubo.
+        envelhecerRotacoes();
+
         // Reuso do token 1 (cenário de roubo): 401 e revogação de TODAS as sessões.
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -281,6 +290,86 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken2))))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("refresh: reuso dentro da janela de graça renova sem revogar as sessões")
+    void refresh_deveRenovarSemRevogar_quandoReusoDentroDaJanelaDeGraca() throws Exception {
+        MvcResult registerResult = mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(VALID_REGISTER)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String refreshToken1 = objectMapper.readTree(registerResult.getResponse().getContentAsString())
+                .get("refreshToken").asText();
+
+        MvcResult refreshResult = mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken1))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String refreshToken2 = objectMapper.readTree(refreshResult.getResponse().getContentAsString())
+                .get("refreshToken").asText();
+
+        // Segunda aba (ou um F5 no meio do refresh) reapresenta o token 1 logo em
+        // seguida: sem a janela de graça isso revogava a sessão inteira e deslogava
+        // o usuário a cada ciclo de access token.
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken1))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+
+        // E o token 2, emitido na rotação legítima, continua valendo.
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken2))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("refresh: sessão com rememberMe mantém o prazo longo ao rotacionar")
+    void refresh_deveManterPrazoLongo_quandoSessaoEhLembrada() throws Exception {
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(VALID_REGISTER)))
+                .andExpect(status().isCreated());
+
+        MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest(EMAIL, PASSWORD, true))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String refreshToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+                .get("refreshToken").asText();
+
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken))))
+                .andExpect(status().isOk());
+
+        // O token emitido na rotação precisa herdar o rememberMe — senão a sessão
+        // de 30 dias encolheria para o prazo curto logo no primeiro refresh.
+        RefreshToken emitido = refreshTokenRepository.findAll().stream()
+                .filter(t -> t.getUsedAt() == null)
+                .findFirst()
+                .orElseThrow();
+        org.junit.jupiter.api.Assertions.assertTrue(emitido.isRememberMe());
+        org.junit.jupiter.api.Assertions.assertTrue(
+                emitido.getExpiresAt().isAfter(LocalDateTime.now().plusDays(20)));
+    }
+
+    /** Recua o {@code usedAt} das rotações já feitas para fora da janela de graça. */
+    private void envelhecerRotacoes() {
+        refreshTokenRepository.findAll().stream()
+                .filter(t -> t.getUsedAt() != null)
+                .forEach(t -> {
+                    t.setUsedAt(t.getUsedAt().minusHours(1));
+                    refreshTokenRepository.save(t);
+                });
     }
 
     @Test

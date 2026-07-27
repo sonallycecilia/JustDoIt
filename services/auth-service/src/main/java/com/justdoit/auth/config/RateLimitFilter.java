@@ -16,9 +16,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Rate limiting por IP nos endpoints públicos de autenticação (login, register,
- * refresh e check-email). Sem isso, esses endpoints permitem enumeração de
- * e-mails em massa, credential stuffing e abuso dos lookups DNS do check-email.
+ * Rate limiting por IP nos endpoints públicos de autenticação (login, register e
+ * check-email). Sem isso, esses endpoints permitem enumeração de e-mails em
+ * massa, credential stuffing e abuso dos lookups DNS do check-email.
  *
  * Token bucket em memória: cada IP tem um balde com {@code capacity} fichas,
  * reabastecido a {@code refillPerMinute} fichas/minuto. Estado local ao processo
@@ -28,8 +28,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    // /auth/refresh ficou de fora: ele já é protegido pelo próprio refresh token
+    // e é chamado a cada ciclo de access token, por todas as abas abertas. Um 429
+    // ali derrubava a sessão do usuário legítimo sem barrar ataque nenhum.
     private static final Set<String> PUBLIC_AUTH_PATHS = Set.of(
-            "/auth/login", "/auth/register", "/auth/refresh", "/auth/check-email");
+            "/auth/login", "/auth/register", "/auth/check-email");
 
     // Evita crescimento sem limite do mapa de baldes (um por IP visto).
     private static final int MAX_TRACKED_IPS = 10_000;

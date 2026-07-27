@@ -35,6 +35,13 @@ public class RefreshToken {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
+    // "Manter conectado" escolhido no login. Precisa ser propagado a cada
+    // rotação: sem isso a sessão longa encolheria para o prazo curto já no
+    // primeiro refresh.
+    @Builder.Default
+    @Column(name = "remember_me", nullable = false)
+    private boolean rememberMe = false;
+
     // Preenchido quando o token é rotacionado (usado num /auth/refresh). A linha
     // vira uma "lápide": se o mesmo token for apresentado de novo, é reuso —
     // todas as sessões do usuário são revogadas. Removida pela limpeza periódica.

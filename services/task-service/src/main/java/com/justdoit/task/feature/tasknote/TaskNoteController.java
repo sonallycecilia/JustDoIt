@@ -37,4 +37,15 @@ public class TaskNoteController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deleteNote(@PathVariable UUID taskId,
+                                           @AuthenticationPrincipal UUID userId) {
+        try {
+            noteService.deleteNote(taskId, userId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

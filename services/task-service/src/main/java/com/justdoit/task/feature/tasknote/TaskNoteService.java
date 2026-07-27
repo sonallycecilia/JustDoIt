@@ -35,6 +35,24 @@ public class TaskNoteService {
         return toResponse(noteRepository.save(note));
     }
 
+    // Limpar a nota é DELETE, e não um PUT com content vazio: o TaskNoteRequest
+    // exige @NotBlank, e afrouxar isso tornaria "nota vazia" indistinguível de
+    // "sem nota". Idempotente — apagar o que não existe não é erro.
+    @Transactional
+    public void deleteNote(UUID taskId, UUID userId) {
+        Task task = taskRepository.findByIdAndUserId(taskId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        noteRepository.findByTaskId(taskId).ifPresent(note -> {
+            // Task.note é o lado inverso com cascade = ALL. A task acima está
+            // gerenciada nesta transação, então se o campo continuar apontando
+            // para a nota o flush a RE-PERSISTE e o delete some sem erro algum
+            // (a resposta ainda é 204). Quebrar a referência é obrigatório.
+            task.setNote(null);
+            noteRepository.delete(note);
+            noteRepository.flush();
+        });
+    }
+
     private TaskNoteResponse toResponse(TaskNote note) {
         return new TaskNoteResponse(
                 note.getId(),
