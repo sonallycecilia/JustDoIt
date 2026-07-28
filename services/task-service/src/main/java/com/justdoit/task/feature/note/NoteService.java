@@ -17,6 +17,10 @@ public class NoteService {
 
     private final NoteRepository noteRepository;
 
+    // Toda escrita usa saveAndFlush, não save: @CreationTimestamp/@UpdateTimestamp
+    // só preenchem createdAt/updatedAt no flush, que sem isso acontece depois do
+    // método retornar — a resposta sairia com updatedAt velho (ou null no POST).
+
     // ---- Aba "Anotações": CRUD de notas do usuário ----
 
     @Transactional(readOnly = true)
@@ -34,7 +38,7 @@ public class NoteService {
                 .content(request.content())
                 .pinned(false)
                 .build();
-        return toResponse(noteRepository.save(note));
+        return toResponse(noteRepository.saveAndFlush(note));
     }
 
     @Transactional(readOnly = true)
@@ -47,7 +51,7 @@ public class NoteService {
         Note note = findOwned(userId, noteId);
         note.setTitle(request.title());
         note.setContent(request.content());
-        return toResponse(noteRepository.save(note));
+        return toResponse(noteRepository.saveAndFlush(note));
     }
 
     @Transactional
@@ -68,7 +72,7 @@ public class NoteService {
                 noteRepository.save(prev);
             });
             note.setPinned(true);
-            noteRepository.save(note);
+            noteRepository.saveAndFlush(note);
         }
         return toResponse(note);
     }
@@ -88,7 +92,7 @@ public class NoteService {
         Note note = noteRepository.findByUserIdAndPinnedTrue(userId)
                 .orElseGet(() -> Note.builder().userId(userId).pinned(true).build());
         note.setContent(request.content());
-        Note saved = noteRepository.save(note);
+        Note saved = noteRepository.saveAndFlush(note);
         return new MeNoteResponse(saved.getId(), saved.getContent(), saved.getCreatedAt(), saved.getUpdatedAt());
     }
 

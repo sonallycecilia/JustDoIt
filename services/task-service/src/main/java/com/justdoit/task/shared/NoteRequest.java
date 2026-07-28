@@ -1,5 +1,6 @@
 package com.justdoit.task.shared;
 
+import com.justdoit.common.validation.TextoSeguro;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -7,6 +8,6 @@ import jakarta.validation.constraints.Size;
  * opcionais (uma nota pode ser só título ou só corpo).
  */
 public record NoteRequest(
-    @Size(max = 255) String title,
-    @Size(max = 10000) String content
+    @Size(max = 255) @TextoSeguro String title,
+    @Size(max = 10000) @TextoSeguro String content
 ) {}

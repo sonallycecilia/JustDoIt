@@ -1,5 +1,6 @@
 package com.justdoit.task.shared;
 
+import com.justdoit.common.validation.TextoSeguro;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -8,5 +9,5 @@ import jakarta.validation.constraints.Size;
  * Mantém o mesmo contrato do antigo UserNoteRequest.
  */
 public record MeNoteRequest(
-    @Size(max = 10000) String content
+    @Size(max = 10000) @TextoSeguro String content
 ) {}

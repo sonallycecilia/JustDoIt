@@ -10,6 +10,9 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+    # O application.yml liga show-sql; nos testes o dump de SQL esconde a saída
+    # que importa (a linha "[MÉTRICA ...]" dos testes de qualidade).
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect

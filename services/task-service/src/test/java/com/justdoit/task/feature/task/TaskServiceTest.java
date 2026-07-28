@@ -44,7 +44,7 @@ class TaskServiceTest {
 
     @Test
     void createTask_withoutCategory_savesTask() {
-        TaskRequest request = new TaskRequest("Test task", null, null, null, null, null);
+        TaskRequest request = new TaskRequest("Test task", null, null, null, null, null, null);
         when(taskRepository.save(any())).thenReturn(task);
 
         TaskResponse result = service.createTask(request, USER_ID);
@@ -57,7 +57,7 @@ class TaskServiceTest {
 
     @Test
     void createTask_withCategory_loadsCategory() {
-        TaskRequest request = new TaskRequest("Test task", null, CAT_ID, Priority.URGENT_IMPORTANT, null, null);
+        TaskRequest request = new TaskRequest("Test task", null, null, CAT_ID, Priority.URGENT_IMPORTANT, null, null);
         Task taskWithCat = Task.builder().id(TASK_ID).userId(USER_ID).title("Test task")
                 .category(category).status(TaskStatus.PENDING).priority(Priority.URGENT_IMPORTANT).build();
         when(categoryRepository.findByIdAndUserId(CAT_ID, USER_ID)).thenReturn(Optional.of(category));
@@ -71,7 +71,7 @@ class TaskServiceTest {
 
     @Test
     void createTask_categoryNotFound_throwsException() {
-        TaskRequest request = new TaskRequest("Test task", null, CAT_ID, null, null, null);
+        TaskRequest request = new TaskRequest("Test task", null, null, CAT_ID, null, null, null);
         when(categoryRepository.findByIdAndUserId(CAT_ID, USER_ID)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () -> service.createTask(request, USER_ID));
@@ -106,7 +106,7 @@ class TaskServiceTest {
 
     @Test
     void updateTask_updatesFieldsAndSaves() {
-        TaskRequest request = new TaskRequest("Updated title", "desc", null, Priority.URGENT_IMPORTANT, null, null);
+        TaskRequest request = new TaskRequest("Updated title", "desc", null, null, Priority.URGENT_IMPORTANT, null, null);
         Task updated = Task.builder().id(TASK_ID).userId(USER_ID).title("Updated title")
                 .description("desc").status(TaskStatus.PENDING).priority(Priority.URGENT_IMPORTANT).build();
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
@@ -124,7 +124,7 @@ class TaskServiceTest {
         // (mover para "Genérico" = sem categoria).
         Task withCat = Task.builder().id(TASK_ID).userId(USER_ID).title("t")
                 .category(category).status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
-        TaskRequest request = new TaskRequest("t", "d", null, null, null, null);
+        TaskRequest request = new TaskRequest("t", "d", null, null, null, null, null);
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(withCat));
         when(taskRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -140,7 +140,7 @@ class TaskServiceTest {
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.updateTask(TASK_ID, new TaskRequest("t", null, null, null, null, null), USER_ID));
+                () -> service.updateTask(TASK_ID, new TaskRequest("t", null, null, null, null, null, null), USER_ID));
     }
 
     @Test

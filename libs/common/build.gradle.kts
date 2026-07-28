@@ -28,6 +28,8 @@ dependencies {
     // segurança e o handler de exceções vivem aqui e são reusados por todos.
     api("org.springframework.boot:spring-boot-starter-web")
     api("org.springframework.boot:spring-boot-starter-security")
+    // Necessário para a constraint @TextoSeguro (validation.TextoSeguroValidator).
+    api("org.springframework.boot:spring-boot-starter-validation")
     api("io.jsonwebtoken:jjwt-api:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")

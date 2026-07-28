@@ -89,6 +89,7 @@ Tarefas e todo o conteúdo de produtividade. `Task` é o aggregate root.
 | `feature.report` | Relatório agregado por período (`/tasks/report`, consumido pelo schedule) |
 | `feature.category` | Categorias (`/categories`) |
 | `feature.userdata` | Purga dos dados do usuário na exclusão de conta (`DELETE /me/data`, chamada interna auth→task) |
+| `feature.export` | Exportação das tarefas do usuário em CSV/JSON (`GET /me/export?format=`, aba Configurações → Dados) |
 | `integration` | `NotificationClient`, `TaskCompletedListener` (comunicação com o notification-service) |
 
 **Anotações:** `Note` permite várias notas por usuário. No máximo uma é `pinned`
@@ -136,7 +137,7 @@ O `infra/nginx.conf` roteia por prefixo de rota:
 | Prefixo | Serviço |
 |---|---|
 | `/auth`, `/users` | auth-service (8080) |
-| `/tasks`, `/categories`, `/notes`, `/me/note` | task-service (8081) |
+| `/tasks`, `/categories`, `/notes`, `/me/note`, `/me/export` | task-service (8081) |
 | `/events`, `/time-blocks`, `/weekly-plans`, `/analytics` | schedule-service (8082) |
 | `/notifications` | notification-service (8083) |
 

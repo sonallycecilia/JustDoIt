@@ -27,6 +27,16 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     @Query("select t from Task t left join fetch t.cycleConfig where t.id = :id and t.userId = :userId")
     Optional<Task> findByIdAndUserIdWithCycle(@Param("id") UUID id, @Param("userId") UUID userId);
 
+    // Exportação de dados (/me/export): traz categoria, cronômetro e nota junto,
+    // porque o arquivo precisa de todos e um lazy load por tarefa viraria N+1.
+    // As três associações são to-one, então o join fetch múltiplo não duplica linhas.
+    @Query("select t from Task t "
+         + "left join fetch t.category "
+         + "left join fetch t.timer "
+         + "left join fetch t.note "
+         + "where t.userId = :userId order by t.createdAt")
+    List<Task> findByUserIdForExport(@Param("userId") UUID userId);
+
     // Relatório por período (consumido pelo schedule-service via /tasks/report)
     long countByUserIdAndDueDateBetween(UUID userId, LocalDate from, LocalDate to);
     List<Task> findByUserIdAndCompletedAtBetween(UUID userId, LocalDateTime from, LocalDateTime to);

@@ -38,12 +38,13 @@ class TaskControllerTest {
     @BeforeEach
     void setUp() {
         taskResponse = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
-                TaskStatus.PENDING, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now(), null);
+                null, TaskStatus.PENDING, Priority.NORMAL, null, null,
+                LocalDateTime.now(), LocalDateTime.now(), null);
     }
 
     @Test
     void createTask_returnsCreated() throws Exception {
-        TaskRequest request = new TaskRequest("Test task", null, null, null, null, null);
+        TaskRequest request = new TaskRequest("Test task", null, null, null, null, null, null);
         when(taskService.createTask(any(), eq(USER_ID))).thenReturn(taskResponse);
 
         mockMvc.perform(post("/tasks")
@@ -62,7 +63,7 @@ class TaskControllerTest {
                         .with(csrf())
                         .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new TaskRequest("", null, null, null, null, null))))
+                        .content(objectMapper.writeValueAsString(new TaskRequest("", null, null, null, null, null, null))))
                 .andExpect(status().isBadRequest());
     }
 
@@ -97,9 +98,10 @@ class TaskControllerTest {
 
     @Test
     void updateTask_returnsOk() throws Exception {
-        TaskRequest request = new TaskRequest("Updated", null, null, null, null, null);
+        TaskRequest request = new TaskRequest("Updated", null, null, null, null, null, null);
         TaskResponse updated = new TaskResponse(TASK_ID, USER_ID, null, "Updated", null,
-                TaskStatus.PENDING, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now(), null);
+                null, TaskStatus.PENDING, Priority.NORMAL, null, null,
+                LocalDateTime.now(), LocalDateTime.now(), null);
         when(taskService.updateTask(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(updated);
 
         mockMvc.perform(put("/tasks/{id}", TASK_ID)
@@ -120,7 +122,7 @@ class TaskControllerTest {
                         .with(csrf())
                         .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new TaskRequest("t", null, null, null, null, null))))
+                        .content(objectMapper.writeValueAsString(new TaskRequest("t", null, null, null, null, null, null))))
                 .andExpect(status().isNotFound());
     }
 
@@ -147,7 +149,8 @@ class TaskControllerTest {
     @Test
     void completeTask_returnsOk() throws Exception {
         TaskResponse completed = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
-                TaskStatus.COMPLETED, Priority.NORMAL, null, null, LocalDateTime.now(), LocalDateTime.now(), null);
+                null, TaskStatus.COMPLETED, Priority.NORMAL, null, null,
+                LocalDateTime.now(), LocalDateTime.now(), null);
         when(taskService.completeTask(eq(TASK_ID), eq(USER_ID), anyString())).thenReturn(completed);
 
         mockMvc.perform(patch("/tasks/{id}/complete", TASK_ID)

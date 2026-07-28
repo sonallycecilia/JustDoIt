@@ -47,12 +47,12 @@ class NoteServiceTest {
 
     @Test
     void create_savesUnpinned() {
-        when(noteRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(noteRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
 
         service.create(USER_ID, new NoteRequest("Título", "Corpo"));
 
         ArgumentCaptor<Note> captor = ArgumentCaptor.forClass(Note.class);
-        verify(noteRepository).save(captor.capture());
+        verify(noteRepository).saveAndFlush(captor.capture());
         assertEquals(USER_ID, captor.getValue().getUserId());
         assertEquals("Título", captor.getValue().getTitle());
         assertFalse(captor.getValue().isPinned());
@@ -67,7 +67,7 @@ class NoteServiceTest {
     @Test
     void update_changesTitleAndContent() {
         when(noteRepository.findByIdAndUserId(NOTE_ID, USER_ID)).thenReturn(Optional.of(note(NOTE_ID, false, "old")));
-        when(noteRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(noteRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
 
         NoteResponse result = service.update(USER_ID, NOTE_ID, new NoteRequest("novo", "conteúdo"));
 
@@ -81,14 +81,13 @@ class NoteServiceTest {
         Note target = note(NOTE_ID, false, "nova");
         when(noteRepository.findByIdAndUserId(NOTE_ID, USER_ID)).thenReturn(Optional.of(target));
         when(noteRepository.findByUserIdAndPinnedTrue(USER_ID)).thenReturn(Optional.of(previous));
-        when(noteRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         NoteResponse result = service.pin(USER_ID, NOTE_ID);
 
         assertFalse(previous.isPinned(), "a nota fixada anterior deve ser desafixada");
         assertTrue(result.pinned());
         verify(noteRepository).save(previous);
-        verify(noteRepository).save(target);
+        verify(noteRepository).saveAndFlush(target);
     }
 
     @Test
@@ -100,6 +99,7 @@ class NoteServiceTest {
 
         verify(noteRepository, never()).findByUserIdAndPinnedTrue(any());
         verify(noteRepository, never()).save(any());
+        verify(noteRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -115,12 +115,12 @@ class NoteServiceTest {
     @Test
     void upsertPinned_whenAbsent_createsPinned() {
         when(noteRepository.findByUserIdAndPinnedTrue(USER_ID)).thenReturn(Optional.empty());
-        when(noteRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(noteRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
 
         service.upsertPinned(USER_ID, new MeNoteRequest("bloco novo"));
 
         ArgumentCaptor<Note> captor = ArgumentCaptor.forClass(Note.class);
-        verify(noteRepository).save(captor.capture());
+        verify(noteRepository).saveAndFlush(captor.capture());
         assertTrue(captor.getValue().isPinned());
         assertEquals("bloco novo", captor.getValue().getContent());
     }
@@ -129,7 +129,7 @@ class NoteServiceTest {
     void upsertPinned_whenPresent_updatesContent() {
         Note existing = note(NOTE_ID, true, "antigo");
         when(noteRepository.findByUserIdAndPinnedTrue(USER_ID)).thenReturn(Optional.of(existing));
-        when(noteRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(noteRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
 
         MeNoteResponse result = service.upsertPinned(USER_ID, new MeNoteRequest("atualizado"));
 

@@ -1,4 +1,4 @@
-package com.justdoit.auth.feature.auth;
+package com.justdoit.auth.qualidade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.justdoit.auth.shared.RegisterRequest;
