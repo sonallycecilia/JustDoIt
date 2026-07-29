@@ -82,7 +82,7 @@ Tarefas e todo o conteúdo de produtividade. `Task` é o aggregate root.
 | `feature.task` | Aggregate root `Task` + `SubTask`, CRUD de tarefas/subtarefas, `OverdueTaskJob` |
 | `feature.tasknote` | `TaskNote` — nota vinculada a UMA tarefa (`/tasks/{id}/note`) |
 | `feature.note` | `Note` — anotações livres do usuário (aba **Anotações**, `/notes`) + bloco fixado no To Do (`/me/note`) |
-| `feature.timer` | Cronômetro por tarefa (`/tasks/{id}/timer`) |
+| `feature.timer` | Cronômetro por tarefa (`/tasks/{id}/timer`), com `start`/`stop` medidos pelo servidor. `ActiveTimer` garante **um cronômetro ativo por usuário** via índice único; o segundo acionamento simultâneo recebe 409. `GET /timers/active` devolve o que está em curso |
 | `feature.focussession` | Sessões de foco (`/tasks/{id}/focus-sessions`) |
 | `feature.cycle` | Tarefas cíclicas/recorrentes (`/tasks/{id}/cycle-config`) |
 | `feature.moduleconfig` | Configuração de módulos por tarefa (`/tasks/{id}/module-config`) |

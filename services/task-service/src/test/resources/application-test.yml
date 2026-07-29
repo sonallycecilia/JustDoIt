@@ -3,10 +3,18 @@
 # espelhando o application-test.yml do auth-service.
 spring:
   datasource:
-    url: jdbc:h2:mem:taskdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    # LOCK_TIMEOUT acima do padrão (1 s): sob acionamento simultâneo, o perdedor da corrida
+    # precisa ESPERAR o vencedor commitar para então receber a violação de unicidade. Com o
+    # padrão ele poderia estourar por timeout de lock antes disso.
+    url: jdbc:h2:mem:taskdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=10000
     username: sa
     password: ""
     driver-class-name: org.h2.Driver
+    hikari:
+      # O padrão (10) é justo demais para CronometroConcorrenteMetricsTest, que dispara
+      # dezenas de requisições realmente simultâneas — cada uma segura uma conexão. Com o
+      # pool no limite, o teste falharia por espera de conexão, não pela regra medida.
+      maximum-pool-size: 30
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -16,5 +24,13 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+logging:
+  level:
+    # A violação de unicidade em active_timer É o mecanismo da métrica de cronômetro
+    # concorrente: são ~130 por execução, todas esperadas. Cada uma gera um WARN e um ERROR
+    # com o SQL inteiro, o que soterra a linha "[MÉTRICA ...]" — mesmo motivo pelo qual
+    # show-sql fica desligado aqui. Falhas reais continuam aparecendo pela asserção.
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: "OFF"
+
 jwt:
   secret: test-secret-key-please-change-256-bits-minimum-0123456789abcdef
