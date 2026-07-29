@@ -38,10 +38,10 @@ public class AuthService {
     private final EmailVerifier emailVerifier;
     private final TaskServiceClient taskServiceClient;
 
-    @Value("${jwt.refresh-token-expiration-ms:43200000}") // 12 h — sem "manter conectado"
+    @Value("${jwt.refresh-token-expiration-ms:43200000}") // refresh token para sessões padrão (12 h) — sem "manter conectado"
     private long refreshTokenExpirationMs;
 
-    @Value("${jwt.refresh-token-remember-expiration-ms:2592000000}") // 30 dias — com "manter conectado"
+    @Value("${jwt.refresh-token-remember-expiration-ms:2592000000}") // refresh token com "manter conectado" (30 dias) — com "manter conectado"
     private long refreshTokenRememberExpirationMs;
 
     @Value("${jwt.refresh-token-grace-period-ms:30000}") // 30 s
@@ -51,11 +51,12 @@ public class AuthService {
     // que a resposta demore o mesmo tempo com ou sem conta (sem oráculo de timing).
     private String dummyPasswordHash;
 
-    @PostConstruct
+    @PostConstruct // gera um hash de senha falso
     void initDummyPasswordHash() {
         dummyPasswordHash = passwordEncoder.encode("dummy-" + UUID.randomUUID());
     }
 
+    // recebe os dados  necessários, checa se o e-mail já existe, cria o usuário, salva no banco e emite tokens de acesso e refresh.
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
