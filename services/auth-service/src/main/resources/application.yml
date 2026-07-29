@@ -20,18 +20,27 @@ spring:
     properties:
       hibernate:
         format_sql: true
+### correção do bug ###
+## o sistema deslogava o usuário após um curto período de inatividade, forçando novos logins com frequência ##
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}      # 15 min
-  # "Manter conectado" desmarcado: o front guarda os tokens em sessionStorage e a
-  # sessão morre ao fechar o navegador — este prazo é só o teto do lado servidor.
-  refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:43200000}  # 12 h
-  # "Manter conectado" marcado: a sessão sobrevive ao fechar o navegador.
-  refresh-token-remember-expiration-ms: ${JWT_REFRESH_REMEMBER_EXPIRATION_MS:2592000000} # 30 dias
-  # Janela em que reapresentar um token já rotacionado é corrida de cliente
-  # (duas abas, F5 no meio do refresh) e não roubo — ver AuthService.refresh.
-  refresh-token-grace-period-ms: ${JWT_REFRESH_GRACE_MS:30000}        # 30 s
+  
+  # Tempo de vida do token de acesso (Padrão: 15 minutos)
+  # Define o limite máximo da sessão no servidor antes de exigir a renovação.
+  access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
+  
+  # Tempo de vida do refresh token para sessões padrão (Padrão: 12 horas)
+  # Aplicado quando o usuário não marca a opção "Manter conectado".
+  refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:43200000}
+  
+  # Tempo de vida do refresh token com "Manter conectado" (Padrão: 30 dias)
+  # Permite que a sessão sobreviva ao fechamento do navegador.
+  refresh-token-remember-expiration-ms: ${JWT_REFRESH_REMEMBER_EXPIRATION_MS:2592000000}
+  
+  # Período de tolerância para reuso de um token recém-rotacionado (Padrão: 30 segundos)
+  # Mitiga falhas por condição de corrida (ex: múltiplas abas ou F5 durante o refresh).
+  refresh-token-grace-period-ms: ${JWT_REFRESH_GRACE_MS:30000}
 
 app:
   cors:
