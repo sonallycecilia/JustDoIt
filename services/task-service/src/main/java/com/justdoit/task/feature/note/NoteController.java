@@ -13,43 +13,37 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Controller REST para as anotações livres do usuário.
- * Mapeia os endpoints que vão alimentar a aba "Anotações" na Sidebar.
+ * estoque de endpoints que serão consumidos pelo frontend para gerenciar as anotações livres do usuário.
  */
 @RestController
-@RequestMapping("/notes") // O endereço agora é genérico e direto (não tem /tasks/ no meio)
+@RequestMapping("/notes") 
 @RequiredArgsConstructor
 public class NoteController {
 
     private final NoteService noteService;
 
     /**
-     * ENDPOINT: Listar TODAS as anotações (GET /notes)
-     * Atende ao Critério de Aceitação 1 do card: "exibir uma lista de todas as anotações".
+     * (GET/notes) - Listar todas as anotações do usuário logado.
      */
     @GetMapping
     public ResponseEntity<List<NoteResponse>> list(@AuthenticationPrincipal UUID userId) {
-        // Devolve a lista inteira. O Service provavelmente já traz isso ordenado (ex: fixadas primeiro).
+        // Devolve a lista inteira
         return ResponseEntity.ok(noteService.list(userId));
     }
 
     /**
-     * ENDPOINT: Criar nova anotação (POST /notes)
-     * POR QUE TEM POST AQUI? Porque "Notes" é uma coleção infinita. O frontend manda
-     * o conteúdo, mas não sabe o ID. O servidor cria a nota, gera o UUID e devolve.
+     * (POST /notes) - criação de uma nova anotação
      */
     @PostMapping
     public ResponseEntity<NoteResponse> create(
             @RequestBody @Valid NoteRequest request,
             @AuthenticationPrincipal UUID userId) {
-        // HTTP 201 (CREATED): É a melhor prática REST para quando um POST tem sucesso. 
-        // Significa "Recebi seu pedido e um novo recurso foi criado no banco".
+        // retorna HTTP 201 (CREATED)
         return ResponseEntity.status(HttpStatus.CREATED).body(noteService.create(userId, request));
     }
 
     /**
-     * ENDPOINT: Buscar uma anotação específica (GET /notes/{id})
-     * Usado quando o usuário clica em uma anotação na lista da sidebar para abrir no editor.
+     * (GET /notes/{id}) - busca uma anotação específica por id
      */
     @GetMapping("/{id}")
     public ResponseEntity<NoteResponse> get(@PathVariable UUID id, @AuthenticationPrincipal UUID userId) {
@@ -61,9 +55,8 @@ public class NoteController {
     }
 
     /**
-     * ENDPOINT: Atualizar uma anotação existente (PUT /notes/{id})
-     * O PUT aqui tem o papel clássico de "Substituir". Ele pega o corpo inteiro que o 
-     * frontend mandou e substitui os dados da nota que tem esse {id}.
+     * (PUT /notes/{id}) - atualizar uma anotação existente
+     * pega o corpo inteiro que o frontend mandou e substitui os dados da nota que tem esse {id}.
      */
     @PutMapping("/{id}")
     public ResponseEntity<NoteResponse> update(
@@ -78,7 +71,7 @@ public class NoteController {
     }
 
     /**
-     * ENDPOINT: Deletar a anotação (DELETE /notes/{id})
+     * (DELETE /notes/{id}) - Deletar a anotação
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id, @AuthenticationPrincipal UUID userId) {
@@ -91,8 +84,7 @@ public class NoteController {
     }
 
     /**
-     * ENDPOINT: Fixar ou Desafixar a anotação (PATCH /notes/{id}/pin)
-     * O uso do PATCH aqui é uma aula de Clean Code e REST!
+     * (PATCH /notes/{id}/pin) - Fixar ou Desafixar a anotação
      */
     @PatchMapping("/{id}/pin")
     public ResponseEntity<NoteResponse> pin(@PathVariable UUID id, @AuthenticationPrincipal UUID userId) {
