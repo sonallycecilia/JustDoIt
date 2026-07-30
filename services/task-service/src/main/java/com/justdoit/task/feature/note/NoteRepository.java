@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+// interface que faz a comunicação direta com o banco de dados, usando o Spring Data JPA
+// e oferece métodos para operações comuns de CRUD.
+
 public interface NoteRepository extends JpaRepository<Note, UUID> {
 
     List<Note> findByUserIdOrderByPinnedDescUpdatedAtDesc(UUID userId);
