@@ -24,6 +24,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
 logging:
   level:
     # A violação de unicidade em active_timer É o mecanismo da métrica de cronômetro
