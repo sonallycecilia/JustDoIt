@@ -148,8 +148,24 @@ pelo nginx — são chamadas internas entre serviços.
 
 ## Infraestrutura
 
-O banco `justdoit_db` é criado automaticamente (`createDatabaseIfNotExist=true`) e as
-tabelas são gerenciadas pelo Hibernate (`ddl-auto=update`) — não há Flyway.
+O banco `justdoit_db` é criado automaticamente (`createDatabaseIfNotExist=true`).
+O schema é versionado pelo **Flyway** e o Hibernate usa `ddl-auto=validate`: ele
+valida o mapeamento, mas nunca altera tabelas durante o startup.
+
+Cada serviço mantém somente as migrations do próprio domínio e usa uma tabela de
+histórico independente:
+
+| Serviço | Histórico Flyway |
+|---|---|
+| auth-service | `flyway_auth_history` |
+| task-service | `flyway_task_history` |
+| schedule-service | `flyway_schedule_history` |
+| notification-service | `flyway_notification_history` |
+
+Os baselines `V1` usam `CREATE TABLE IF NOT EXISTS`, permitindo adoção sobre o
+banco legado anteriormente mantido por `ddl-auto=update`. Novas mudanças devem
+ser adicionadas como `V2__descricao.sql`, `V3__descricao.sql` etc.; uma migration
+já aplicada nunca deve ser editada.
 
 ```bash
 docker-compose -f infra/docker-compose.yml up -d
