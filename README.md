@@ -8,6 +8,9 @@ O **JustDoIt** é uma plataforma web focada no gerenciamento de tarefas e produt
 
 Projeto multi-módulo **Spring Boot 3.4.1 / Java 21** gerenciado pelo Gradle, composto por 4 serviços independentes que compartilham um único banco MySQL, mais uma biblioteca comum.
 
+> **Fluxo completo em diagramas:** [`docs/diagramas/`](docs/diagramas/) — arquitetura,
+> autenticação, modelo de dados, cronômetro, recorrência, resumo semanal, jobs e deploy.
+
 ```
 JustDoIt/
 ├── libs/

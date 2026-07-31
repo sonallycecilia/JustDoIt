@@ -67,6 +67,39 @@ class TaskControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // Um categoryId que não pertence ao dono do token faz o service lançar
+    // IllegalArgumentException. Sem tratamento isso virava 500 e o cliente não
+    // tinha como saber que o problema era o campo enviado.
+    @Test
+    void createTask_withUnknownCategory_returnsBadRequestWithReason() throws Exception {
+        TaskRequest request = new TaskRequest("Test task", null, null,
+                UUID.fromString("00000000-0000-0000-0000-000000000009"), null, null, null);
+        when(taskService.createTask(any(), eq(USER_ID)))
+                .thenThrow(new IllegalArgumentException("Category not found"));
+
+        mockMvc.perform(post("/tasks")
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Category not found"));
+    }
+
+    // O corpo de erro de validação também precisa carregar "error": é a chave
+    // que o frontend exibe (api/client.js), além do detalhe por campo.
+    @Test
+    void createTask_withBlankTitle_returnsReadableError() throws Exception {
+        mockMvc.perform(post("/tasks")
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new TaskRequest("", null, null, null, null, null, null))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").exists())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
     @Test
     void getAllTasks_returnsOk() throws Exception {
         when(taskService.getAllTasksByUser(USER_ID)).thenReturn(List.of(taskResponse));
