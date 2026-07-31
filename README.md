@@ -137,7 +137,7 @@ O `infra/nginx.conf` roteia por prefixo de rota:
 | Prefixo | Serviço |
 |---|---|
 | `/auth`, `/users` | auth-service (8080) |
-| `/tasks`, `/categories`, `/notes`, `/me/note`, `/me/export` | task-service (8081) |
+| `/tasks`, `/timers`, `/categories`, `/notes`, `/me/note`, `/me/export` | task-service (8081) |
 | `/events`, `/time-blocks`, `/weekly-plans`, `/analytics` | schedule-service (8082) |
 | `/notifications` | notification-service (8083) |
 
