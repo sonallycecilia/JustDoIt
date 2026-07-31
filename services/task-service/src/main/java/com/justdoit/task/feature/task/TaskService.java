@@ -6,14 +6,20 @@ import com.justdoit.task.shared.TaskRequest;
 import com.justdoit.task.shared.TaskResponse;
 import com.justdoit.task.shared.Priority;
 import com.justdoit.task.shared.TaskStatus;
+import com.justdoit.task.shared.DeleteScope;
 import com.justdoit.task.feature.category.Category;
 import com.justdoit.task.feature.category.CategoryRepository;
+import com.justdoit.task.feature.cycle.CycleConfig;
+import com.justdoit.task.feature.cycle.CycleConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +30,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final SubTaskRepository subTaskRepository;
     private final CategoryRepository categoryRepository;
+    private final CycleConfigRepository cycleConfigRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -69,10 +76,51 @@ public class TaskService {
     }
 
     @Transactional
-    public void deleteTask(UUID taskId, UUID userId) {
+    public void deleteTask(UUID taskId, UUID userId, DeleteScope scope) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        if (scope == DeleteScope.SERIES) {
+            UUID rootId = task.getSeriesId() != null ? task.getSeriesId() : task.getId();
+            Task root = task.getSeriesId() == null
+                    ? task
+                    : taskRepository.findByIdAndUserId(rootId, userId)
+                        .orElseThrow(() -> new IllegalArgumentException("Task series not found"));
+            taskRepository.deleteAll(taskRepository.findBySeriesIdAndUserId(rootId, userId));
+            taskRepository.delete(root);
+            return;
+        }
+        if (task.getSeriesId() == null && task.getCycleConfig() != null) {
+            promoteNextOccurrenceAndDeleteRoot(task, userId);
+            return;
+        }
         taskRepository.delete(task);
+    }
+
+    private void promoteNextOccurrenceAndDeleteRoot(Task root, UUID userId) {
+        List<Task> occurrences = taskRepository.findBySeriesIdAndUserId(root.getId(), userId);
+        if (occurrences.isEmpty()) {
+            taskRepository.delete(root);
+            return;
+        }
+
+        Task promoted = occurrences.stream()
+                .min(Comparator
+                        .comparing((Task t) -> t.getDueDate() != null ? t.getDueDate() : LocalDate.MAX)
+                        .thenComparing(t -> t.getDueTime() != null ? t.getDueTime() : LocalTime.MAX))
+                .orElseThrow();
+        CycleConfig config = root.getCycleConfig();
+
+        root.setCycleConfig(null);
+        promoted.setSeriesId(null);
+        promoted.setCycleConfig(config);
+        config.setTask(promoted);
+        occurrences.stream()
+                .filter(t -> !t.getId().equals(promoted.getId()))
+                .forEach(t -> t.setSeriesId(promoted.getId()));
+
+        taskRepository.saveAll(occurrences);
+        cycleConfigRepository.save(config);
+        taskRepository.delete(root);
     }
 
     public TaskResponse getTaskById(UUID taskId, UUID userId) {
@@ -172,6 +220,7 @@ public class TaskService {
                 task.getDueTime(),
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
+                task.getSeriesId(),
                 task.getCycleConfig() != null ? task.getCycleConfig().getCycleType() : null
         );
     }
