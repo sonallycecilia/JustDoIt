@@ -165,7 +165,7 @@ public class TaskService {
                 task.getCategory() != null ? task.getCategory().getId() : null,
                 task.getTitle(),
                 task.getDescription(),
-                task.getEstimatedMinutes(),
+                TaskEstimates.minutesOf(task),
                 task.getStatus(),
                 task.getPriority(),
                 task.getDueDate(),

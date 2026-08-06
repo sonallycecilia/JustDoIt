@@ -3,6 +3,7 @@ import com.justdoit.task.feature.cycle.CycleConfig;
 import com.justdoit.task.feature.focussession.FocusSession;
 import com.justdoit.task.feature.tasknote.TaskNote;
 import com.justdoit.task.feature.timer.TaskTimer;
+import com.justdoit.task.feature.timer.TimeEntry;
 import com.justdoit.task.feature.moduleconfig.TaskModuleConfig;
 
 import com.justdoit.task.shared.Priority;
@@ -100,6 +101,12 @@ public class Task {
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<FocusSession> focusSessions = new ArrayList<>();
+
+    // Intervalos cronometrados (com data). O cascade é o que faz a exclusão da
+    // tarefa e a purga da conta (DELETE /me/data) levarem o histórico junto.
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<TimeEntry> timeEntries = new ArrayList<>();
 
     @OneToOne(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private CycleConfig cycleConfig;

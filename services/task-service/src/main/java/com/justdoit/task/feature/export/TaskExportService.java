@@ -1,6 +1,7 @@
 package com.justdoit.task.feature.export;
 
 import com.justdoit.task.feature.task.Task;
+import com.justdoit.task.feature.task.TaskEstimates;
 import com.justdoit.task.feature.task.TaskRepository;
 import com.justdoit.task.feature.timer.TaskTimer;
 import com.justdoit.task.shared.ExportFormat;
@@ -82,12 +83,7 @@ public class TaskExportService {
 
     private static TaskExportResponse.TaskRow toRow(Task task) {
         TaskTimer timer = task.getTimer();
-        // A estimativa que o usuário edita mora no módulo de cronômetro
-        // (PUT /tasks/{id}/timer). Task.estimatedMinutes é a coluna antiga, que o
-        // TaskService nem escreve mais — fica só como fallback de dados legados.
-        Integer estimatedMinutes = timer != null && timer.getEstimatedMinutes() != null
-                ? timer.getEstimatedMinutes()
-                : task.getEstimatedMinutes();
+        Integer estimatedMinutes = TaskEstimates.minutesOf(task);
 
         return new TaskExportResponse.TaskRow(
                 task.getId(),

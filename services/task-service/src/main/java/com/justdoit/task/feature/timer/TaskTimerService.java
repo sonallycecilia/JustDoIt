@@ -21,6 +21,7 @@ public class TaskTimerService {
     private final TaskRepository taskRepository;
     private final TaskTimerRepository timerRepository;
     private final ActiveTimerRepository activeTimerRepository;
+    private final TimeEntryRepository timeEntryRepository;
 
     public TaskTimerResponse getTimer(UUID taskId, UUID userId) {
         taskRepository.findByIdAndUserId(taskId, userId)
@@ -37,15 +38,28 @@ public class TaskTimerService {
         TaskTimer timer = timerRepository.findByTaskId(taskId)
                 .orElse(TaskTimer.builder().task(task).build());
         if (request.estimatedMinutes() != null) timer.setEstimatedMinutes(request.estimatedMinutes());
-        if (request.actualSeconds() != null) timer.setActualSeconds(request.actualSeconds());
+        if (request.actualSeconds() != null) {
+            timer.setActualSeconds(request.actualSeconds());
+            // Este PUT DEFINE o total (não incrementa): é o "zerar cronômetro" e a
+            // gravação do tempo rodado antes de a tarefa existir. Os intervalos
+            // datados são reescritos para bater com o novo total, senão o
+            // acumulado e o /tasks/report contariam coisas diferentes.
+            timeEntryRepository.deleteByTaskId(taskId);
+            if (request.actualSeconds() > 0) {
+                registrarIntervalo(task, request.actualSeconds());
+            }
+        }
         if (request.completedAt() != null) timer.setCompletedAt(request.completedAt());
         return toResponse(timerRepository.save(timer));
     }
 
     @Transactional
     public TaskTimerResponse logSeconds(UUID taskId, Long seconds, UUID userId) {
-        taskRepository.findByIdAndUserId(taskId, userId)
+        Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        if (seconds != null && seconds > 0) {
+            registrarIntervalo(task, seconds);
+        }
         return somarSegundos(taskId, seconds);
     }
 
@@ -89,7 +103,7 @@ public class TaskTimerService {
     /** Para o cronômetro e soma ao acumulado o tempo decorrido desde o start. */
     @Transactional
     public TaskTimerResponse stop(UUID taskId, UUID userId) {
-        taskRepository.findByIdAndUserId(taskId, userId)
+        Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         ActiveTimer ativo = activeTimerRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("No active timer"));
@@ -97,8 +111,19 @@ public class TaskTimerService {
             throw new IllegalArgumentException("Active timer belongs to another task");
         }
 
-        long decorridos = Math.max(0, Duration.between(ativo.getStartedAt(), LocalDateTime.now()).getSeconds());
+        LocalDateTime fim = LocalDateTime.now();
+        long decorridos = Math.max(0, Duration.between(ativo.getStartedAt(), fim).getSeconds());
         activeTimerRepository.delete(ativo);
+        // Aqui as datas são reais (o início veio do servidor, no start), então o
+        // intervalo cai no dia certo mesmo se atravessar a madrugada.
+        if (decorridos > 0) {
+            timeEntryRepository.save(TimeEntry.builder()
+                    .task(task)
+                    .startedAt(ativo.getStartedAt())
+                    .endedAt(fim)
+                    .seconds(decorridos)
+                    .build());
+        }
         return somarSegundos(taskId, decorridos);
     }
 
@@ -127,6 +152,20 @@ public class TaskTimerService {
         }
         return toResponse(timerRepository.findByTaskId(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Timer not found")));
+    }
+
+    /**
+     * Intervalo sem par de datas exato (log manual e gravação do tempo rodado
+     * antes de a tarefa existir): assume que os segundos terminaram agora.
+     */
+    private void registrarIntervalo(Task task, long seconds) {
+        LocalDateTime fim = LocalDateTime.now();
+        timeEntryRepository.save(TimeEntry.builder()
+                .task(task)
+                .startedAt(fim.minusSeconds(seconds))
+                .endedAt(fim)
+                .seconds(seconds)
+                .build());
     }
 
     private TaskTimerResponse toResponse(TaskTimer timer) {

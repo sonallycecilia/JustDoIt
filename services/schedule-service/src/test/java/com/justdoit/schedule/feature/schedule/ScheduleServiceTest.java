@@ -83,6 +83,7 @@ class ScheduleServiceTest {
     @Test
     void createWeeklyPlan_savesAndReturnsResponse() {
         WeeklyPlanRequest request = new WeeklyPlanRequest(TODAY, TODAY.plusDays(6));
+        when(weeklyPlanRepository.findByUserIdAndWeekStartDate(USER_ID, TODAY)).thenReturn(Optional.empty());
         when(weeklyPlanRepository.save(any())).thenReturn(weeklyPlan);
 
         WeeklyPlanResponse result = service.createWeeklyPlan(request, USER_ID);
@@ -93,6 +94,17 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void createWeeklyPlan_semanaJaAberta_devolveOMesmoPlanoSemDuplicar() {
+        WeeklyPlanRequest request = new WeeklyPlanRequest(TODAY, TODAY.plusDays(6));
+        when(weeklyPlanRepository.findByUserIdAndWeekStartDate(USER_ID, TODAY)).thenReturn(Optional.of(weeklyPlan));
+
+        WeeklyPlanResponse result = service.createWeeklyPlan(request, USER_ID);
+
+        assertEquals(PLAN_ID, result.id());
+        verify(weeklyPlanRepository, never()).save(any());
+    }
+
+    @Test
     void closeWeeklyPlan_setsStatusClosed() {
         WeeklyPlan closed = WeeklyPlan.builder()
                 .id(PLAN_ID).userId(USER_ID)
@@ -100,18 +112,37 @@ class ScheduleServiceTest {
                 .status(ScheduleStatus.CLOSED)
                 .build();
         when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
+        when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, TODAY, TODAY.plusDays(6)))
+                .thenReturn(List.of(timeBlock));
+        when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.empty());
+        when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6))).thenReturn(Optional.empty());
+        when(weeklySummaryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(weeklyPlanRepository.save(any())).thenReturn(closed);
 
-        WeeklyPlanResponse result = service.closeWeeklyPlan(PLAN_ID, USER_ID);
+        WeeklyPlanResponse result = service.closeWeeklyPlan(PLAN_ID, USER_ID, AUTH_HEADER);
 
         assertEquals(ScheduleStatus.CLOSED, result.status());
+        // O retrato tem de ser gravado ANTES do fechamento, senão a semana fecha vazia
+        verify(weeklySummaryRepository).save(any(WeeklySummary.class));
+    }
+
+    @Test
+    void closeWeeklyPlan_jaFechada_naoRegeraOResumo() {
+        weeklyPlan.setStatus(ScheduleStatus.CLOSED);
+        when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
+
+        WeeklyPlanResponse result = service.closeWeeklyPlan(PLAN_ID, USER_ID, AUTH_HEADER);
+
+        assertEquals(ScheduleStatus.CLOSED, result.status());
+        verify(weeklySummaryRepository, never()).save(any());
+        verify(weeklyPlanRepository, never()).save(any());
     }
 
     @Test
     void closeWeeklyPlan_notFound_throwsException() {
         when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> service.closeWeeklyPlan(PLAN_ID, USER_ID));
+        assertThrows(IllegalArgumentException.class, () -> service.closeWeeklyPlan(PLAN_ID, USER_ID, AUTH_HEADER));
     }
 
     @Test
@@ -125,7 +156,7 @@ class ScheduleServiceTest {
 
         WeeklySummaryResponse result = service.generateWeeklySummary(PLAN_ID, USER_ID, AUTH_HEADER);
 
-        assertEquals(60, result.totalEstimatedMinutes());
+        assertEquals(60, result.totalScheduledMinutes()); // veio do bloco no calendário
         assertEquals(1, result.totalTasks());
         assertEquals(0L, result.totalActualSeconds());
         assertEquals(0, result.completedTasks());
@@ -138,17 +169,72 @@ class ScheduleServiceTest {
                 .thenReturn(List.of(timeBlock));
         when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.empty());
         when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6)))
-                .thenReturn(Optional.of(new TaskReport(5, 3, 4_500L)));
+                .thenReturn(Optional.of(new TaskReport(5, 3, 4_500L, 150L)));
         when(weeklySummaryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         WeeklySummaryResponse result = service.generateWeeklySummary(PLAN_ID, USER_ID, AUTH_HEADER);
 
-        assertEquals(60, result.totalEstimatedMinutes());
+        // As três grandezas são distintas: 60 min na agenda, 150 min estimados
+        // nas tarefas, 4500s executados. Nenhuma substitui a outra.
+        assertEquals(60, result.totalScheduledMinutes());
+        assertEquals(150, result.totalEstimatedMinutes());
+        assertEquals(4_500L, result.totalActualSeconds());
         assertEquals(5, result.totalTasks());
         assertEquals(3, result.completedTasks());
-        assertEquals(4_500L, result.totalActualSeconds());
-        // 4500s executados - 60min estimados (3600s) = 900s de desvio
+        // 4500s executados - 60min agendados (3600s) = 900s de desvio
         assertEquals(900L, result.deviationSeconds());
+    }
+
+    @Test
+    void generateWeeklySummary_semanaFechada_devolveORetratoCongelado() {
+        weeklyPlan.setStatus(ScheduleStatus.CLOSED);
+        WeeklySummary congelado = WeeklySummary.builder()
+                .weeklyPlan(weeklyPlan)
+                .totalScheduledMinutes(120).totalEstimatedMinutes(90)
+                .totalActualSeconds(7_200L).deviationSeconds(0L)
+                .completedTasks(4).totalTasks(4)
+                .build();
+        when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
+        when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.of(congelado));
+
+        WeeklySummaryResponse result = service.generateWeeklySummary(PLAN_ID, USER_ID, AUTH_HEADER);
+
+        assertEquals(120, result.totalScheduledMinutes());
+        assertEquals(4, result.completedTasks());
+        // Nada de recalcular: nem blocos, nem task-service, nem escrita
+        verify(timeBlockRepository, never()).findByUserIdAndDateBetween(any(), any(), any());
+        verify(taskReportClient, never()).getReport(any(), any(), any());
+        verify(weeklySummaryRepository, never()).save(any());
+    }
+
+    @Test
+    void findWeeklySummary_leOSalvoSemRecalcular() {
+        WeeklySummary salvo = WeeklySummary.builder()
+                .weeklyPlan(weeklyPlan).totalScheduledMinutes(45).build();
+        when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
+        when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.of(salvo));
+
+        Optional<WeeklySummaryResponse> result = service.findWeeklySummary(PLAN_ID, USER_ID);
+
+        assertTrue(result.isPresent());
+        assertEquals(45, result.get().totalScheduledMinutes());
+        verify(taskReportClient, never()).getReport(any(), any(), any());
+        verify(weeklySummaryRepository, never()).save(any());
+    }
+
+    @Test
+    void findWeeklySummary_semResumoAinda_devolveVazio() {
+        when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
+        when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.empty());
+
+        assertTrue(service.findWeeklySummary(PLAN_ID, USER_ID).isEmpty());
+    }
+
+    @Test
+    void findWeeklyPlan_achaPelaDataDeInicio() {
+        when(weeklyPlanRepository.findByUserIdAndWeekStartDate(USER_ID, TODAY)).thenReturn(Optional.of(weeklyPlan));
+
+        assertEquals(PLAN_ID, service.findWeeklyPlan(TODAY, USER_ID).orElseThrow().id());
     }
 
     @Test

@@ -28,7 +28,8 @@ public class TaskReportClient {
      * (from/to/byDay são ignorados na desserialização).
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record TaskReport(long totalTasks, long completedTasks, long totalActualSeconds) { }
+    public record TaskReport(long totalTasks, long completedTasks,
+                             long totalActualSeconds, long totalEstimatedMinutes) { }
 
     private final RestClient restClient;
 

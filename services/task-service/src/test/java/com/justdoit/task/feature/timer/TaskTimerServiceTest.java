@@ -27,6 +27,7 @@ class TaskTimerServiceTest {
     @Mock private TaskRepository taskRepository;
     @Mock private TaskTimerRepository timerRepository;
     @Mock private ActiveTimerRepository activeTimerRepository;
+    @Mock private TimeEntryRepository timeEntryRepository;
     @InjectMocks private TaskTimerService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -201,6 +202,106 @@ class TaskTimerServiceTest {
         verify(activeTimerRepository).delete(ativo);
         verify(timerRepository).incrementActualSeconds(TASK_ID, 120L);
         assertEquals(120L, result.actualSeconds());
+    }
+
+    @Test
+    void stop_gravaIntervaloDatadoComOInicioDoServidor() {
+        // Sem esta linha o tempo do cronômetro fica invisível para qualquer relatório
+        // por período: TaskTimer.actualSeconds é um acumulado sem data.
+        LocalDateTime inicio = LocalDateTime.now().minusMinutes(2);
+        ActiveTimer ativo = ativo(TASK_ID, inicio);
+        TaskTimer atualizado = TaskTimer.builder().id(TIMER_ID).task(task).actualSeconds(120L).build();
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(activeTimerRepository.findByUserId(USER_ID)).thenReturn(Optional.of(ativo));
+        when(timerRepository.incrementActualSeconds(eq(TASK_ID), anyLong())).thenReturn(1);
+        when(timerRepository.findByTaskId(TASK_ID)).thenReturn(Optional.of(atualizado));
+
+        service.stop(TASK_ID, USER_ID);
+
+        ArgumentCaptor<TimeEntry> captor = ArgumentCaptor.forClass(TimeEntry.class);
+        verify(timeEntryRepository).save(captor.capture());
+        TimeEntry gravado = captor.getValue();
+        assertEquals(TASK_ID, gravado.getTask().getId());
+        assertEquals(inicio, gravado.getStartedAt()); // o início é o do servidor, não "agora menos X"
+        assertEquals(120L, gravado.getSeconds());
+        assertNotNull(gravado.getEndedAt());
+    }
+
+    @Test
+    void stop_semTempoDecorrido_naoGravaIntervaloVazio() {
+        ActiveTimer ativo = ativo(TASK_ID, LocalDateTime.now());
+        TaskTimer atualizado = TaskTimer.builder().id(TIMER_ID).task(task).actualSeconds(0L).build();
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(activeTimerRepository.findByUserId(USER_ID)).thenReturn(Optional.of(ativo));
+        when(timerRepository.incrementActualSeconds(eq(TASK_ID), anyLong())).thenReturn(1);
+        when(timerRepository.findByTaskId(TASK_ID)).thenReturn(Optional.of(atualizado));
+
+        service.stop(TASK_ID, USER_ID);
+
+        verify(timeEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void logSeconds_gravaIntervaloTerminandoAgora() {
+        // O log manual informa só a duração, então o intervalo é ancorado no fim.
+        TaskTimer atualizado = TaskTimer.builder().id(TIMER_ID).task(task).actualSeconds(150L).build();
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(timerRepository.incrementActualSeconds(TASK_ID, 50L)).thenReturn(1);
+        when(timerRepository.findByTaskId(TASK_ID)).thenReturn(Optional.of(atualizado));
+
+        service.logSeconds(TASK_ID, 50L, USER_ID);
+
+        ArgumentCaptor<TimeEntry> captor = ArgumentCaptor.forClass(TimeEntry.class);
+        verify(timeEntryRepository).save(captor.capture());
+        assertEquals(50L, captor.getValue().getSeconds());
+        assertEquals(50L, java.time.Duration.between(
+                captor.getValue().getStartedAt(), captor.getValue().getEndedAt()).getSeconds());
+    }
+
+    @Test
+    void upsertTimer_zerandoOCronometro_apagaOHistoricoDatado() {
+        // Zerar tem de valer nas duas fontes, senão o acumulado (0) e o relatório
+        // passariam a contar coisas diferentes.
+        TaskTimerRequest request = new TaskTimerRequest(null, 0L, null);
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(timerRepository.findByTaskId(TASK_ID)).thenReturn(Optional.of(timer));
+        when(timerRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.upsertTimer(TASK_ID, request, USER_ID);
+
+        verify(timeEntryRepository).deleteByTaskId(TASK_ID);
+        verify(timeEntryRepository, never()).save(any()); // zerado não vira intervalo de 0s
+    }
+
+    @Test
+    void upsertTimer_definindoTotal_reescreveOHistoricoParaBater() {
+        // Caminho da tarefa NOVA: o cronômetro rodou antes de a tarefa existir e o
+        // total é gravado de uma vez. O intervalo é reescrito para casar com ele.
+        TaskTimerRequest request = new TaskTimerRequest(60, 1800L, null);
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(timerRepository.findByTaskId(TASK_ID)).thenReturn(Optional.of(timer));
+        when(timerRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.upsertTimer(TASK_ID, request, USER_ID);
+
+        ArgumentCaptor<TimeEntry> captor = ArgumentCaptor.forClass(TimeEntry.class);
+        verify(timeEntryRepository).deleteByTaskId(TASK_ID);
+        verify(timeEntryRepository).save(captor.capture());
+        assertEquals(1800L, captor.getValue().getSeconds());
+    }
+
+    @Test
+    void upsertTimer_semActualSeconds_naoMexeNoHistorico() {
+        // Salvar só a estimativa não pode apagar tempo trabalhado.
+        TaskTimerRequest request = new TaskTimerRequest(45, null, null);
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(timerRepository.findByTaskId(TASK_ID)).thenReturn(Optional.of(timer));
+        when(timerRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.upsertTimer(TASK_ID, request, USER_ID);
+
+        verify(timeEntryRepository, never()).deleteByTaskId(any());
+        verify(timeEntryRepository, never()).save(any());
     }
 
     @Test

@@ -18,13 +18,15 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     Optional<Task> findByIdAndUserId(UUID id, UUID userId);
     List<Task> findByCategoryIdAndUserId(UUID categoryId, UUID userId);
 
-    // Caminhos de leitura que serializam TaskResponse: trazem o cycleConfig junto
-    // (left join fetch) para expor cycleType sem N+1 nem lazy loading fora da
-    // transação. left join = tarefas sem ciclo continuam vindo (cycleType null).
-    @Query("select t from Task t left join fetch t.cycleConfig where t.userId = :userId")
+    // Caminhos de leitura que serializam TaskResponse: trazem cycleConfig e timer
+    // junto (left join fetch) para expor cycleType e a estimativa sem N+1 nem lazy
+    // loading fora da transação. left join = tarefas sem ciclo/cronômetro continuam
+    // vindo. As duas associações são to-one, então o fetch múltiplo não duplica linhas.
+    @Query("select t from Task t left join fetch t.cycleConfig left join fetch t.timer where t.userId = :userId")
     List<Task> findByUserIdWithCycle(@Param("userId") UUID userId);
 
-    @Query("select t from Task t left join fetch t.cycleConfig where t.id = :id and t.userId = :userId")
+    @Query("select t from Task t left join fetch t.cycleConfig left join fetch t.timer "
+         + "where t.id = :id and t.userId = :userId")
     Optional<Task> findByIdAndUserIdWithCycle(@Param("id") UUID id, @Param("userId") UUID userId);
 
     // Exportação de dados (/me/export): traz categoria, cronômetro e nota junto,
@@ -37,8 +39,15 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
          + "where t.userId = :userId order by t.createdAt")
     List<Task> findByUserIdForExport(@Param("userId") UUID userId);
 
-    // Relatório por período (consumido pelo schedule-service via /tasks/report)
-    long countByUserIdAndDueDateBetween(UUID userId, LocalDate from, LocalDate to);
+    // Relatório por período (consumido pelo dashboard e pelo schedule-service via
+    // /tasks/report). Traz o cronômetro junto porque o relatório soma a estimativa,
+    // que mora em TaskTimer.estimatedMinutes — sem o fetch seria um lazy load por tarefa.
+    @Query("select t from Task t left join fetch t.timer "
+         + "where t.userId = :userId and t.dueDate between :from and :to")
+    List<Task> findByUserIdAndDueDateBetweenWithTimer(@Param("userId") UUID userId,
+                                                      @Param("from") LocalDate from,
+                                                      @Param("to") LocalDate to);
+
     List<Task> findByUserIdAndCompletedAtBetween(UUID userId, LocalDateTime from, LocalDateTime to);
 
     // Job de detecção de tarefas atrasadas (todos os usuários)

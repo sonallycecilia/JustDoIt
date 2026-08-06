@@ -36,8 +36,8 @@ class TaskReportControllerTest {
     void getReport_returnsAggregates() throws Exception {
         LocalDate from = LocalDate.of(2026, 6, 29);
         LocalDate to = from.plusDays(6);
-        TaskReportResponse response = new TaskReportResponse(from, to, 5, 3, 5400,
-                List.of(new TaskReportResponse.DaySummary(from, 5400, 3)));
+        TaskReportResponse response = new TaskReportResponse(from, to, 5, 3, 5400, 180,
+                List.of(new TaskReportResponse.DaySummary(from, 5400, 3600, 1800, 3, 2, 180)));
         when(taskReportService.getReport(eq(USER_ID), eq(from), eq(to))).thenReturn(response);
 
         mockMvc.perform(get("/tasks/report")
@@ -48,7 +48,12 @@ class TaskReportControllerTest {
                 .andExpect(jsonPath("$.totalTasks").value(5))
                 .andExpect(jsonPath("$.completedTasks").value(3))
                 .andExpect(jsonPath("$.totalActualSeconds").value(5400))
-                .andExpect(jsonPath("$.byDay[0].date").value("2026-06-29"));
+                .andExpect(jsonPath("$.byDay[0].date").value("2026-06-29"))
+                .andExpect(jsonPath("$.byDay[0].focusSessions").value(2))
+                .andExpect(jsonPath("$.totalEstimatedMinutes").value(180))
+                .andExpect(jsonPath("$.byDay[0].estimatedMinutes").value(180))
+                .andExpect(jsonPath("$.byDay[0].focusSeconds").value(3600))
+                .andExpect(jsonPath("$.byDay[0].timerSeconds").value(1800));
     }
 
     @Test
