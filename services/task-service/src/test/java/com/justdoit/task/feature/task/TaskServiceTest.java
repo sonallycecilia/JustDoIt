@@ -2,6 +2,8 @@ package com.justdoit.task.feature.task;
 
 import com.justdoit.task.feature.category.Category;
 import com.justdoit.task.feature.category.CategoryRepository;
+import com.justdoit.task.feature.cycle.CycleConfig;
+import com.justdoit.task.feature.cycle.CycleConfigRepository;
 import com.justdoit.task.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,12 +27,14 @@ class TaskServiceTest {
     @Mock private TaskRepository taskRepository;
     @Mock private SubTaskRepository subTaskRepository;
     @Mock private CategoryRepository categoryRepository;
+    @Mock private CycleConfigRepository cycleConfigRepository;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @InjectMocks private TaskService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID TASK_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final UUID CAT_ID  = UUID.fromString("00000000-0000-0000-0000-000000000003");
+    private static final UUID SERIES_ID = UUID.fromString("00000000-0000-0000-0000-000000000004");
 
     private Task task;
     private Category category;
@@ -96,12 +100,14 @@ class TaskServiceTest {
 
     @Test
     void getAllTasksByUser_returnsList() {
+        task.setSeriesId(SERIES_ID);
         when(taskRepository.findByUserIdWithCycle(USER_ID)).thenReturn(List.of(task));
 
         List<TaskResponse> result = service.getAllTasksByUser(USER_ID);
 
         assertEquals(1, result.size());
         assertEquals(TASK_ID, result.get(0).id());
+        assertEquals(SERIES_ID, result.get(0).seriesId());
     }
 
     @Test
@@ -147,7 +153,7 @@ class TaskServiceTest {
     void deleteTask_callsDelete() {
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
 
-        service.deleteTask(TASK_ID, USER_ID);
+        service.deleteTask(TASK_ID, USER_ID, DeleteScope.INSTANCE);
 
         verify(taskRepository).delete(task);
     }
@@ -156,7 +162,49 @@ class TaskServiceTest {
     void deleteTask_notFound_throwsException() {
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> service.deleteTask(TASK_ID, USER_ID));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.deleteTask(TASK_ID, USER_ID, DeleteScope.INSTANCE));
+    }
+
+    @Test
+    void deleteTask_series_deletesEveryOccurrenceAndRoot() {
+        Task occurrence = Task.builder().id(TASK_ID).userId(USER_ID).seriesId(SERIES_ID)
+                .title("Occurrence").status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        Task root = Task.builder().id(SERIES_ID).userId(USER_ID).title("Series root")
+                .status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        Task another = Task.builder().id(UUID.randomUUID()).userId(USER_ID).seriesId(SERIES_ID)
+                .title("Occurrence 2").status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(occurrence));
+        when(taskRepository.findByIdAndUserId(SERIES_ID, USER_ID)).thenReturn(Optional.of(root));
+        when(taskRepository.findBySeriesIdAndUserId(SERIES_ID, USER_ID))
+                .thenReturn(List.of(occurrence, another));
+
+        service.deleteTask(TASK_ID, USER_ID, DeleteScope.SERIES);
+
+        verify(taskRepository).deleteAll(List.of(occurrence, another));
+        verify(taskRepository).delete(root);
+    }
+
+    @Test
+    void deleteTask_rootInstance_promotesNextOccurrenceAndPreservesSeries() {
+        CycleConfig config = CycleConfig.builder().task(task).cycleType(CycleType.WEEKLY).build();
+        task.setCycleConfig(config);
+        Task next = Task.builder().id(SERIES_ID).userId(USER_ID).seriesId(TASK_ID)
+                .title("Next").dueDate(java.time.LocalDate.now().plusWeeks(1))
+                .status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        Task later = Task.builder().id(UUID.randomUUID()).userId(USER_ID).seriesId(TASK_ID)
+                .title("Later").dueDate(java.time.LocalDate.now().plusWeeks(2))
+                .status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(taskRepository.findBySeriesIdAndUserId(TASK_ID, USER_ID)).thenReturn(List.of(later, next));
+
+        service.deleteTask(TASK_ID, USER_ID, DeleteScope.INSTANCE);
+
+        assertNull(next.getSeriesId());
+        assertEquals(next, config.getTask());
+        assertEquals(SERIES_ID, later.getSeriesId());
+        verify(cycleConfigRepository).save(config);
+        verify(taskRepository).delete(task);
     }
 
     @Test

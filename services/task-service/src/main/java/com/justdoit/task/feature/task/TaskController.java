@@ -4,6 +4,7 @@ import com.justdoit.task.shared.SubTaskRequest;
 import com.justdoit.task.shared.SubTaskResponse;
 import com.justdoit.task.shared.TaskRequest;
 import com.justdoit.task.shared.TaskResponse;
+import com.justdoit.task.shared.DeleteScope;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -54,9 +55,11 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable UUID id, @AuthenticationPrincipal UUID userId) {
+    public ResponseEntity<Void> deleteTask(@PathVariable UUID id,
+                                           @RequestParam(defaultValue = "INSTANCE") DeleteScope scope,
+                                           @AuthenticationPrincipal UUID userId) {
         try {
-            taskService.deleteTask(id, userId);
+            taskService.deleteTask(id, userId, scope);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();

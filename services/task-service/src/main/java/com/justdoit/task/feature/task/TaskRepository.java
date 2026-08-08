@@ -64,6 +64,7 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     // Ciclicidade: ocorrências futuras (a partir de hoje) ainda pendentes de uma série.
     long countBySeriesIdAndStatusAndDueDateGreaterThanEqual(UUID seriesId, TaskStatus status, LocalDate date);
     List<Task> findBySeriesIdAndStatusAndDueDateGreaterThanEqual(UUID seriesId, TaskStatus status, LocalDate date);
+    List<Task> findBySeriesIdAndUserId(UUID seriesId, UUID userId);
 
     @Query("select max(t.dueDate) from Task t where t.seriesId = :seriesId")
     LocalDate findMaxDueDateBySeriesId(@Param("seriesId") UUID seriesId);

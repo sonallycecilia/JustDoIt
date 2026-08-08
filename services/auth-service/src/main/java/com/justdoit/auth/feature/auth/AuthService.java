@@ -38,10 +38,10 @@ public class AuthService {
     private final EmailVerifier emailVerifier;
     private final TaskServiceClient taskServiceClient;
 
-    @Value("${jwt.refresh-token-expiration-ms:43200000}") // 12 h — sem "manter conectado"
+    @Value("${jwt.refresh-token-expiration-ms:43200000}") // refresh token para sessões padrão (12 h) — sem "manter conectado"
     private long refreshTokenExpirationMs;
 
-    @Value("${jwt.refresh-token-remember-expiration-ms:2592000000}") // 30 dias — com "manter conectado"
+    @Value("${jwt.refresh-token-remember-expiration-ms:2592000000}") // refresh token com "manter conectado" (30 dias) — com "manter conectado"
     private long refreshTokenRememberExpirationMs;
 
     @Value("${jwt.refresh-token-grace-period-ms:30000}") // 30 s
@@ -51,11 +51,12 @@ public class AuthService {
     // que a resposta demore o mesmo tempo com ou sem conta (sem oráculo de timing).
     private String dummyPasswordHash;
 
-    @PostConstruct
+    @PostConstruct // gera um hash de senha falso
     void initDummyPasswordHash() {
         dummyPasswordHash = passwordEncoder.encode("dummy-" + UUID.randomUUID());
     }
 
+    // recebe os dados  necessários, checa se o e-mail já existe, cria o usuário, salva no banco e emite tokens: acess e refresh.
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
@@ -64,7 +65,7 @@ public class AuthService {
         User user = User.builder()
                 .name(request.name())
                 .email(request.email())
-                .passwordHash(passwordEncoder.encode(request.password()))
+                .passwordHash(passwordEncoder.encode(request.password())) // senha criptografada com bcrypt antes de ser salva no banco
                 .birthDate(request.birthDate())
                 .active(true)
                 .build();
@@ -85,7 +86,10 @@ public class AuthService {
         boolean available = !registered && deliverable;
         return new CheckEmailResponse(normalized, registered, deliverable, available);
     }
-
+    // faz a busca pelo usuário pelo email
+    //  se não existir, paga o custo do bcrypt mesmo assim
+    // se existir, compara a senha com o hash armazenado, 
+    // se não bater, lança exceção, se bater, revoga sessões anteriores e emite novos tokens.
     @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.email()).orElse(null);
@@ -99,44 +103,48 @@ public class AuthService {
             throw new IllegalArgumentException("Credenciais inválidas");
         }
         // Revoga sessões anteriores: apenas um refresh token ativo por usuário.
-        refreshTokenRepository.deleteByUserId(user.getId());
+        refreshTokenRepository.deleteByUserId(user.getId()); // de forma prática: não é possivel estar logado em dois dispositivos ao mesmo tempo, pois ao logar em um, o outro é deslogado.
         return issueTokens(user, request.rememberMe());
     }
 
     @Transactional
     public AuthResponse refresh(String refreshTokenValue) {
+        // recebe o token em texto puro e transformar em hash para buscar no banco
+        // se não achar, barra a requisição lançando um erro
         String hash = sha256(refreshTokenValue);
         RefreshToken stored = refreshTokenRepository.findByTokenHash(hash)
                 .orElseThrow(() -> new IllegalArgumentException("Refresh token inválido"));
 
+        // aqui é o cálculo do prazo de expiração do refresh token
+        //  se já passou do prazo, deleta o token e lança exceção
         if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(stored);
             throw new IllegalArgumentException("Refresh token inválido");
         }
 
+        // LÓGICA DE ROTAÇÃO DO REFRESH TOKEN 
+
+        // caso 1: token nunca usado antes 
+        // nesse caso, marca o token como usado e salva no banco, setando a data e hora atual
+        // ele não deleta, apenas marca como usado!!
         if (stored.getUsedAt() == null) {
-            // Rotação: marca como usado (em vez de apagar) para que um reuso futuro
-            // seja detectável até o token expirar ou a limpeza periódica removê-lo.
             stored.setUsedAt(LocalDateTime.now());
             refreshTokenRepository.save(stored);
+        
+        // caso 2: token já usado antes - alerta de roubo de token
+        // caso em que o token já foi usado e o tempo de tolerância de 30s já estourou 
+        // oq indica que o token foi reutilizado e possivelmente por algum ataque
         } else if (stored.getUsedAt().plus(refreshTokenGracePeriodMs, ChronoUnit.MILLIS)
                 .isBefore(LocalDateTime.now())) {
-            // Detecção de reuso (padrão OAuth token-family): um token rotacionado há
-            // tempo suficiente sendo apresentado de novo indica roubo — ou o atacante
-            // usa o token velho depois do usuário legítimo, ou o usuário usa depois do
-            // atacante. Nos dois casos, revogar TODAS as sessões força re-login e corta
-            // a cadeia roubada.
+            // nesse caso, deleta o token do banco e lança exceção, forçando o usuário a logar novamente
             refreshTokenRepository.deleteByUserId(stored.getUserId());
             throw new IllegalArgumentException("Refresh token inválido");
         }
-        // Sobrou o caso do meio: token rotacionado há poucos segundos. Isso é o
-        // cliente legítimo em corrida consigo mesmo — duas abas renovando ao mesmo
-        // tempo, ou um F5 no meio de um refresh em voo, que recarrega a página com
-        // o token antigo porque o par novo nunca chegou ao storage. Tratar como
-        // roubo deslogava o usuário a cada ciclo de access token. Dentro da janela
-        // emitimos um par novo normalmente; o token órfão da corrida nunca é usado
-        // e expira sozinho.
+        
 
+        // caso 3: o sistema entende que nenhum dos casos anteriores se aplicam
+        //  ou seja, o token foi usado antes, mas ainda está dentro do prazo de tolerância de 30s
+        // o sistema entende que o token é válido, então emite novos tokens e retorna para o usuário
         User user = userRepository.findById(stored.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Refresh token inválido"));
         // O prazo é herdado: sem isso, a sessão de 30 dias de quem marcou "manter

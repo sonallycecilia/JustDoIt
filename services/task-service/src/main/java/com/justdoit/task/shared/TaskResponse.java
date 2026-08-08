@@ -18,5 +18,6 @@ public record TaskResponse(
     LocalTime dueTime,
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
+    UUID seriesId,
     CycleType cycleType
 ) {}
