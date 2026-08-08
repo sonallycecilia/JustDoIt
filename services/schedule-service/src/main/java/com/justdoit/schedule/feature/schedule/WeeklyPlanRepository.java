@@ -15,4 +15,6 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, UUID> {
     // não o id. Sem isto, o id só existiria na resposta do POST e se perderia
     // no primeiro reload.
     Optional<WeeklyPlan> findByUserIdAndWeekStartDate(UUID userId, LocalDate weekStartDate);
+    List<WeeklyPlan> findByUserIdAndWeekStartDateBetweenOrderByWeekStartDateDesc(
+            UUID userId, LocalDate from, LocalDate to);
 }

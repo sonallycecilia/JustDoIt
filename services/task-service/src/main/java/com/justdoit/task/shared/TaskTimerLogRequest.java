@@ -4,5 +4,10 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 public record TaskTimerLogRequest(
-    @NotNull @Min(1) Long seconds
-) {}
+    @NotNull @Min(1) Long seconds,
+    TimeEntrySource source
+) {
+    public TaskTimerLogRequest(Long seconds) {
+        this(seconds, null);
+    }
+}

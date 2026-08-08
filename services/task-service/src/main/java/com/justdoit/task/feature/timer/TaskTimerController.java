@@ -47,7 +47,7 @@ public class TaskTimerController {
                                                          @RequestBody @Valid TaskTimerLogRequest request,
                                                          @AuthenticationPrincipal UUID userId) {
         try {
-            return ResponseEntity.ok(somarComRetry(taskId, request.seconds(), userId));
+            return ResponseEntity.ok(somarComRetry(taskId, request.seconds(), request.source(), userId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -88,11 +88,17 @@ public class TaskTimerController {
      * {@code task_id} barra o segundo. A retentativa roda em transação nova — a original já
      * sofreu rollback — e desta vez encontra o registro criado pelo concorrente.
      */
-    private TaskTimerResponse somarComRetry(UUID taskId, Long seconds, UUID userId) {
+    private TaskTimerResponse somarComRetry(UUID taskId, Long seconds,
+                                            com.justdoit.task.shared.TimeEntrySource source,
+                                            UUID userId) {
         try {
-            return timerService.logSeconds(taskId, seconds, userId);
+            return source == null
+                    ? timerService.logSeconds(taskId, seconds, userId)
+                    : timerService.logSeconds(taskId, seconds, source, userId);
         } catch (DataIntegrityViolationException e) {
-            return timerService.logSeconds(taskId, seconds, userId);
+            return source == null
+                    ? timerService.logSeconds(taskId, seconds, userId)
+                    : timerService.logSeconds(taskId, seconds, source, userId);
         }
     }
 }

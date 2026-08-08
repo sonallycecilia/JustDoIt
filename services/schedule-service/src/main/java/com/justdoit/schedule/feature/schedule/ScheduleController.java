@@ -84,6 +84,33 @@ public class ScheduleController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/weekly-plans/history")
+    public ResponseEntity<List<WeeklyPlanResponse>> getWeeklyPlanHistory(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @AuthenticationPrincipal UUID userId) {
+        try {
+            return ResponseEntity.ok(scheduleService.findWeeklyPlans(from, to, userId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/analytics/overall")
+    public ResponseEntity<AnalyticsOverallResponse> getOverallAnalytics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @AuthenticationPrincipal UUID userId,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader) {
+        try {
+            return ResponseEntity.ok(scheduleService.getOverallAnalytics(from, to, userId, authHeader));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+    }
+
     @PatchMapping("/weekly-plans/{id}/close")
     public ResponseEntity<WeeklyPlanResponse> closeWeeklyPlan(@PathVariable UUID id,
                                                               @AuthenticationPrincipal UUID userId,

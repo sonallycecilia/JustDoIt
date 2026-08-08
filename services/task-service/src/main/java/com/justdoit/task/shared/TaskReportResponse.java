@@ -29,13 +29,53 @@ public record TaskReportResponse(
         long completedTasks,
         long totalActualSeconds,
         long totalEstimatedMinutes,
-        List<DaySummary> byDay
+        List<DaySummary> byDay,
+        long dueTasksCompleted,
+        long completedInPeriod,
+        long overdueOpenTasks,
+        long undatedOpenTasks,
+        long undatedCompletedTasks,
+        long undatedEstimatedMinutes,
+        long totalMeasuredSeconds,
+        long totalInferredSeconds,
+        List<CategorySummary> byCategory,
+        List<TaskPerformance> taskPerformance
 ) {
+    /** Construtor compatível com consumidores e testes do contrato anterior. */
+    public TaskReportResponse(LocalDate from, LocalDate to, long totalTasks, long completedTasks,
+                              long totalActualSeconds, long totalEstimatedMinutes, List<DaySummary> byDay) {
+        this(from, to, totalTasks, completedTasks, totalActualSeconds, totalEstimatedMinutes, byDay,
+                0, completedTasks, 0, 0, 0, 0, totalActualSeconds, 0, List.of(), List.of());
+    }
+
     public record DaySummary(LocalDate date,
                              long actualSeconds,
                              long focusSeconds,
                              long timerSeconds,
                              long completedTasks,
                              long focusSessions,
-                             long estimatedMinutes) { }
+                             long estimatedMinutes,
+                             long measuredSeconds,
+                             long inferredSeconds) {
+        public DaySummary(LocalDate date, long actualSeconds, long focusSeconds, long timerSeconds,
+                          long completedTasks, long focusSessions, long estimatedMinutes) {
+            this(date, actualSeconds, focusSeconds, timerSeconds, completedTasks, focusSessions,
+                    estimatedMinutes, actualSeconds, 0);
+        }
+    }
+
+    public record CategorySummary(java.util.UUID categoryId,
+                                  String categoryName,
+                                  String categoryColor,
+                                  long estimatedMinutes,
+                                  long measuredSeconds,
+                                  long inferredSeconds,
+                                  long dueTasks,
+                                  long dueTasksCompleted) { }
+
+    public record TaskPerformance(java.util.UUID taskId,
+                                  String title,
+                                  long estimatedMinutes,
+                                  long actualSeconds,
+                                  long deviationSeconds) { }
 }

@@ -6,6 +6,7 @@ bin/
 .idea/
 .vscode/
 .claude/
+docs/
 
 # Segredos / variaveis de ambiente (NUNCA commitar)
 .env

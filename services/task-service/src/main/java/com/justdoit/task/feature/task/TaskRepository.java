@@ -42,11 +42,19 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     // Relatório por período (consumido pelo dashboard e pelo schedule-service via
     // /tasks/report). Traz o cronômetro junto porque o relatório soma a estimativa,
     // que mora em TaskTimer.estimatedMinutes — sem o fetch seria um lazy load por tarefa.
-    @Query("select t from Task t left join fetch t.timer "
+    @Query("select t from Task t left join fetch t.timer left join fetch t.category "
          + "where t.userId = :userId and t.dueDate between :from and :to")
     List<Task> findByUserIdAndDueDateBetweenWithTimer(@Param("userId") UUID userId,
                                                       @Param("from") LocalDate from,
                                                       @Param("to") LocalDate to);
+
+    @Query("select t from Task t left join fetch t.timer left join fetch t.category "
+         + "where t.userId = :userId and t.dueDate is null")
+    List<Task> findUndatedByUserIdWithTimer(@Param("userId") UUID userId);
+
+    @Query("select count(t) from Task t where t.userId = :userId "
+         + "and t.dueDate < :date and t.status <> com.justdoit.task.shared.TaskStatus.COMPLETED")
+    long countOverdueOpen(@Param("userId") UUID userId, @Param("date") LocalDate date);
 
     List<Task> findByUserIdAndCompletedAtBetween(UUID userId, LocalDateTime from, LocalDateTime to);
 

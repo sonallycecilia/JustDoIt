@@ -1,6 +1,7 @@
 package com.justdoit.task.feature.timer;
 
 import com.justdoit.task.feature.task.Task;
+import com.justdoit.task.shared.TimeEntrySource;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -53,4 +54,11 @@ public class TimeEntry {
      *  log manual (PATCH /timer/log) informa segundos sem um par exato de datas. */
     @Column(nullable = false)
     private long seconds;
+
+    @Enumerated(EnumType.STRING)
+    // Nullable durante a migração: registros anteriores ao campo são tratados
+    // como LEGACY (tempo medido) pelo relatório.
+    @Column
+    @Builder.Default
+    private TimeEntrySource source = TimeEntrySource.LEGACY;
 }

@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
+import com.justdoit.schedule.shared.SummaryDataStatus;
 
 @Data
 @Builder
@@ -50,4 +51,9 @@ public class WeeklySummary {
     @Builder.Default
     @Column(name = "total_tasks")
     private Integer totalTasks = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "data_status")
+    private SummaryDataStatus dataStatus = SummaryDataStatus.COMPLETE;
 }

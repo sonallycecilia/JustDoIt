@@ -146,7 +146,7 @@ class ScheduleServiceTest {
     }
 
     @Test
-    void generateWeeklySummary_semRelatorio_usaSoDadosLocais() {
+    void generateWeeklySummary_semRelatorio_marcaDadosParciaisSemConfundirBlocosComTarefas() {
         when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
         when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, TODAY, TODAY.plusDays(6)))
                 .thenReturn(List.of(timeBlock));
@@ -157,9 +157,10 @@ class ScheduleServiceTest {
         WeeklySummaryResponse result = service.generateWeeklySummary(PLAN_ID, USER_ID, AUTH_HEADER);
 
         assertEquals(60, result.totalScheduledMinutes()); // veio do bloco no calendário
-        assertEquals(1, result.totalTasks());
+        assertEquals(0, result.totalTasks());
         assertEquals(0L, result.totalActualSeconds());
         assertEquals(0, result.completedTasks());
+        assertEquals(SummaryDataStatus.PARTIAL, result.dataStatus());
     }
 
     @Test
@@ -243,6 +244,37 @@ class ScheduleServiceTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.generateWeeklySummary(PLAN_ID, USER_ID, AUTH_HEADER));
+    }
+
+    @Test
+    void getOverallAnalytics_dividePeriodosLongosEmAte92Dias() {
+        LocalDate from = LocalDate.of(2026, 1, 1);
+        LocalDate to = LocalDate.of(2026, 4, 11);
+        TaskReport vazio = new TaskReport(0, 0, 0, 0);
+        when(taskReportClient.getReport(AUTH_HEADER, from, from.plusDays(91)))
+                .thenReturn(Optional.of(vazio));
+        when(taskReportClient.getReport(AUTH_HEADER, from.plusDays(92), to))
+                .thenReturn(Optional.of(vazio));
+        when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, from, to))
+                .thenReturn(List.of(timeBlock));
+
+        AnalyticsOverallResponse result = service.getOverallAnalytics(from, to, USER_ID, AUTH_HEADER);
+
+        assertEquals(2, result.reports().size());
+        assertEquals(1, result.timeBlocks().size());
+        verify(taskReportClient).getReport(AUTH_HEADER, from, from.plusDays(91));
+        verify(taskReportClient).getReport(AUTH_HEADER, from.plusDays(92), to);
+    }
+
+    @Test
+    void getOverallAnalytics_falhaSemEntregarHistoricoParcial() {
+        LocalDate from = LocalDate.of(2026, 1, 1);
+        LocalDate to = LocalDate.of(2026, 1, 31);
+        when(taskReportClient.getReport(AUTH_HEADER, from, to)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalStateException.class,
+                () -> service.getOverallAnalytics(from, to, USER_ID, AUTH_HEADER));
+        verifyNoInteractions(timeBlockRepository);
     }
 
     @Test

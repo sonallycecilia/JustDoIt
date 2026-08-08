@@ -90,6 +90,41 @@ public class ScheduleService {
                 .map(this::toWeeklyPlanResponse);
     }
 
+    public List<WeeklyPlanResponse> findWeeklyPlans(LocalDate from, LocalDate to, UUID userId) {
+        if (from == null || to == null || to.isBefore(from)) {
+            throw new IllegalArgumentException("Período inválido");
+        }
+        return weeklyPlanRepository
+                .findByUserIdAndWeekStartDateBetweenOrderByWeekStartDateDesc(userId, from, to)
+                .stream().map(this::toWeeklyPlanResponse).toList();
+    }
+
+    /**
+     * Reúne todo o histórico em uma chamada pública. Internamente o task-service
+     * continua protegido pelo teto de 92 dias, por isso o intervalo é fatiado.
+     * O token do próprio usuário é repassado em cada chamada.
+     */
+    public AnalyticsOverallResponse getOverallAnalytics(LocalDate from, LocalDate to, UUID userId,
+                                                         String authorizationHeader) {
+        if (from == null || to == null || to.isBefore(from) || to.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Período inválido");
+        }
+
+        List<TaskReport> reports = new java.util.ArrayList<>();
+        LocalDate cursor = from;
+        while (!cursor.isAfter(to)) {
+            LocalDate chunkEnd = cursor.plusDays(91);
+            if (chunkEnd.isAfter(to)) chunkEnd = to;
+            TaskReport report = taskReportClient.getReport(authorizationHeader, cursor, chunkEnd)
+                    .orElseThrow(() -> new IllegalStateException("Task report unavailable"));
+            reports.add(report);
+            cursor = chunkEnd.plusDays(1);
+        }
+
+        List<TimeBlockResponse> blocks = getTimeBlocksBetween(from, to, userId);
+        return new AnalyticsOverallResponse(from, to, reports, blocks);
+    }
+
     /**
      * Fecha a semana. Gera o resumo uma última vez ANTES de marcar CLOSED: é esse
      * retrato que fica congelado. Sem isso, fechar uma semana sem nunca ter
@@ -153,8 +188,12 @@ public class ScheduleService {
             summary.setTotalActualSeconds(r.totalActualSeconds());
             summary.setTotalEstimatedMinutes((int) r.totalEstimatedMinutes());
             summary.setDeviationSeconds(r.totalActualSeconds() - totalScheduled * 60L);
+            summary.setDataStatus(SummaryDataStatus.COMPLETE);
         } else {
-            summary.setTotalTasks(blocks.size());
+            // Não substitui tarefas por blocos: são entidades diferentes. O zero
+            // vem acompanhado de PARTIAL para nunca parecer um retrato completo.
+            summary.setTotalTasks(0);
+            summary.setDataStatus(SummaryDataStatus.PARTIAL);
         }
 
         return toWeeklySummaryResponse(weeklySummaryRepository.save(summary));
@@ -179,6 +218,7 @@ public class ScheduleService {
         return new WeeklySummaryResponse(s.getId(), s.getWeeklyPlan().getId(),
                 s.getTotalScheduledMinutes(), s.getTotalEstimatedMinutes(),
                 s.getTotalActualSeconds(), s.getDeviationSeconds(),
-                s.getCompletedTasks(), s.getTotalTasks());
+                s.getCompletedTasks(), s.getTotalTasks(),
+                s.getDataStatus() != null ? s.getDataStatus() : SummaryDataStatus.PARTIAL);
     }
 }

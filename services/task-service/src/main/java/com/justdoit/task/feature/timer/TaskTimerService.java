@@ -5,6 +5,7 @@ import com.justdoit.task.feature.task.Task;
 import com.justdoit.task.shared.ActiveTimerResponse;
 import com.justdoit.task.shared.TaskTimerRequest;
 import com.justdoit.task.shared.TaskTimerResponse;
+import com.justdoit.task.shared.TimeEntrySource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -55,10 +56,15 @@ public class TaskTimerService {
 
     @Transactional
     public TaskTimerResponse logSeconds(UUID taskId, Long seconds, UUID userId) {
+        return logSeconds(taskId, seconds, TimeEntrySource.MANUAL, userId);
+    }
+
+    @Transactional
+    public TaskTimerResponse logSeconds(UUID taskId, Long seconds, TimeEntrySource source, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         if (seconds != null && seconds > 0) {
-            registrarIntervalo(task, seconds);
+            registrarIntervalo(task, seconds, source != null ? source : TimeEntrySource.MANUAL);
         }
         return somarSegundos(taskId, seconds);
     }
@@ -122,6 +128,7 @@ public class TaskTimerService {
                     .startedAt(ativo.getStartedAt())
                     .endedAt(fim)
                     .seconds(decorridos)
+                    .source(TimeEntrySource.TIMER)
                     .build());
         }
         return somarSegundos(taskId, decorridos);
@@ -159,12 +166,17 @@ public class TaskTimerService {
      * antes de a tarefa existir): assume que os segundos terminaram agora.
      */
     private void registrarIntervalo(Task task, long seconds) {
+        registrarIntervalo(task, seconds, TimeEntrySource.MANUAL);
+    }
+
+    private void registrarIntervalo(Task task, long seconds, TimeEntrySource source) {
         LocalDateTime fim = LocalDateTime.now();
         timeEntryRepository.save(TimeEntry.builder()
                 .task(task)
                 .startedAt(fim.minusSeconds(seconds))
                 .endedAt(fim)
                 .seconds(seconds)
+                .source(source)
                 .build());
     }
 

@@ -8,7 +8,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Cliente HTTP para o task-service (espelho do NotificationClient de lá).
@@ -28,8 +30,30 @@ public class TaskReportClient {
      * (from/to/byDay são ignorados na desserialização).
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record TaskReport(long totalTasks, long completedTasks,
-                             long totalActualSeconds, long totalEstimatedMinutes) { }
+    public record TaskReport(LocalDate from, LocalDate to, long totalTasks, long completedTasks,
+                             long totalActualSeconds, long totalEstimatedMinutes,
+                             List<DaySummary> byDay, long dueTasksCompleted,
+                             long completedInPeriod, long overdueOpenTasks,
+                             long undatedOpenTasks, long undatedCompletedTasks,
+                             long undatedEstimatedMinutes, long totalMeasuredSeconds,
+                             long totalInferredSeconds, List<CategorySummary> byCategory,
+                             List<TaskPerformance> taskPerformance) {
+        public TaskReport(long totalTasks, long completedTasks, long totalActualSeconds,
+                          long totalEstimatedMinutes) {
+            this(null, null, totalTasks, completedTasks, totalActualSeconds, totalEstimatedMinutes,
+                    List.of(), 0, completedTasks, 0, 0, 0, 0,
+                    totalActualSeconds, 0, List.of(), List.of());
+        }
+
+        public record DaySummary(LocalDate date, long actualSeconds, long focusSeconds,
+                                 long timerSeconds, long completedTasks, long focusSessions,
+                                 long estimatedMinutes, long measuredSeconds, long inferredSeconds) { }
+        public record CategorySummary(UUID categoryId, String categoryName, String categoryColor,
+                                      long estimatedMinutes, long measuredSeconds, long inferredSeconds,
+                                      long dueTasks, long dueTasksCompleted) { }
+        public record TaskPerformance(UUID taskId, String title, long estimatedMinutes,
+                                      long actualSeconds, long deviationSeconds) { }
+    }
 
     private final RestClient restClient;
 

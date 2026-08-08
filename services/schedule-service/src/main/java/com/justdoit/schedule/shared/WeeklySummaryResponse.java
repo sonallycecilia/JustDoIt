@@ -19,5 +19,13 @@ public record WeeklySummaryResponse(
     Long totalActualSeconds,
     Long deviationSeconds,
     Integer completedTasks,
-    Integer totalTasks
-) {}
+    Integer totalTasks,
+    SummaryDataStatus dataStatus
+) {
+    public WeeklySummaryResponse(UUID id, UUID weeklyPlanId, Integer totalScheduledMinutes,
+                                 Integer totalEstimatedMinutes, Long totalActualSeconds,
+                                 Long deviationSeconds, Integer completedTasks, Integer totalTasks) {
+        this(id, weeklyPlanId, totalScheduledMinutes, totalEstimatedMinutes, totalActualSeconds,
+                deviationSeconds, completedTasks, totalTasks, SummaryDataStatus.COMPLETE);
+    }
+}

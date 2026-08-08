@@ -9,6 +9,8 @@ import com.justdoit.task.feature.timer.TimeEntryRepository;
 
 import com.justdoit.task.shared.SessionType;
 import com.justdoit.task.shared.TaskReportResponse;
+import com.justdoit.task.shared.TaskStatus;
+import com.justdoit.task.shared.TimeEntrySource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -227,5 +229,35 @@ class TaskReportServiceTest {
         TaskReportResponse report = service.getReport(USER_ID, SEG, SEG);
 
         assertEquals(15 + 40, report.totalEstimatedMinutes());
+    }
+
+    @Test
+    @DisplayName("separa tarefas sem data e tempo medido do inferido na conclusão")
+    void report_separaSemDataETempoInferido() {
+        Task pendente = tarefaComVencimento(null, 300);
+        Task concluida = tarefaComVencimento(null, null);
+        concluida.setStatus(TaskStatus.COMPLETED);
+
+        TimeEntry medido = intervalo(SEG.atTime(9, 0), 1800);
+        medido.setSource(TimeEntrySource.TIMER);
+        TimeEntry inferido = intervalo(SEG.atTime(10, 0), 3600);
+        inferido.setSource(TimeEntrySource.COMPLETION_ESTIMATE);
+
+        when(taskRepository.findByUserIdAndDueDateBetweenWithTimer(USER_ID, SEG, DOM)).thenReturn(List.of());
+        when(taskRepository.findUndatedByUserIdWithTimer(USER_ID)).thenReturn(List.of(pendente, concluida));
+        when(taskRepository.countOverdueOpen(USER_ID, SEG)).thenReturn(2L);
+        when(taskRepository.findByUserIdAndCompletedAtBetween(eq(USER_ID), any(), any())).thenReturn(List.of());
+        when(focusSessionRepository.findByTask_UserIdAndStartedAtBetween(eq(USER_ID), any(), any())).thenReturn(List.of());
+        when(timeEntryRepository.findByTask_UserIdAndStartedAtBetween(eq(USER_ID), any(), any()))
+                .thenReturn(List.of(medido, inferido));
+
+        TaskReportResponse report = service.getReport(USER_ID, SEG, DOM);
+
+        assertEquals(1, report.undatedOpenTasks());
+        assertEquals(1, report.undatedCompletedTasks());
+        assertEquals(300, report.undatedEstimatedMinutes());
+        assertEquals(2, report.overdueOpenTasks());
+        assertEquals(1800, report.totalMeasuredSeconds());
+        assertEquals(3600, report.totalInferredSeconds());
     }
 }
