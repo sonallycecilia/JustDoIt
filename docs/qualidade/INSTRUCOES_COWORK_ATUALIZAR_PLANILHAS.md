@@ -11,6 +11,15 @@ As capturas de referência estão em:
 
 > As imagens são somente referências visuais. Não editar ou recriar uma planilha a partir do PNG se o arquivo original `.xlsx` estiver disponível. Solicitar/anexar a planilha original antes da edição.
 
+## Repositórios e pastas da implementação
+
+| Escopo | Repositório local | Branch | Pasta principal |
+|---|---|---|---|
+| Backend e documentação | `C:\Users\sonal\Documents\vsProjects\JustDoIt` | `qualidade` | `services/task-service` e `docs/qualidade` |
+| Frontend | `C:\Users\sonal\Documents\vsProjects\justdoit-frontend` | `qualidade` | `src/features/tasks/qualidade` |
+
+Os caminhos apresentados nas seções seguintes são relativos ao respectivo repositório indicado nesta tabela.
+
 ## Regras para a edição
 
 1. Preservar layout, fórmulas, cores, bordas, mesclagens e escalas existentes.
@@ -27,6 +36,8 @@ Localizar a linha com:
 - palavra-guia: **Depois**;
 - risco atual: `P = 4`, `S = 2`, `Risco = 8`;
 - providência relacionada à otimização da renderização assíncrona e armazenamento local.
+
+Implementação localizada no repositório frontend `C:\Users\sonal\Documents\vsProjects\justdoit-frontend`, branch `qualidade`, principalmente na pasta `src/features/tasks/qualidade`.
 
 ### Comentário a inserir
 
@@ -59,6 +70,8 @@ Localizar a linha com:
 - palavra-guia: **Mais**;
 - risco atual: `P = 3`, `S = 3`, `Risco = 9`;
 - defeito relacionado a cliques repetidos e múltiplos disparos do cronômetro.
+
+Implementação localizada no repositório backend `C:\Users\sonal\Documents\vsProjects\JustDoIt`, branch `qualidade`, no módulo `services/task-service`.
 
 ### Comentário a inserir
 
