@@ -28,16 +28,18 @@ O acesso síncrono ao `localStorage` durante a montagem do formulário poderia a
 | Arquivo | Responsabilidade |
 |---|---|
 | `src/features/tasks/qualidade/responsividadeAutosave.js` | Código isolado da mitigação: agendamento ocioso, limite, fallback, cancelamento e meta da métrica |
+| `src/features/tasks/qualidade/metricasResponsividadeAutosave.js` | Monitoramento isolado de montagem, Event Timing/INP, tarefas longas, amostras e cálculo P75 |
 | `src/features/tasks/hooks/useRascunhoTarefa.js` | Fluxo funcional do rascunho, debounce e gravação no desmonte; delega o agendamento à camada de qualidade |
 | `src/features/tasks/components/TaskEditor.jsx` | Restauração assíncrona e proteção contra sobrescrita de texto novo |
 | `src/features/tasks/qualidade/ResponsividadeAutosaveMetrics.test.jsx` | Métrica de leituras síncronas na primeira renderização e testes da persistência, restauração e concorrência com digitação |
+| `src/features/tasks/qualidade/MetricasResponsividadeAutosave.test.jsx` | Testes do P75, limite de INP, Event Timing e detecção de tarefas longas |
 
-Os arquivos de implementação pertencem ao repositório `justdoit-frontend`, branch `qualidade`. A implementação inicial está no commit `53a1678`, a organização da métrica no commit `9a3164d` e a separação da lógica de mitigação no commit `04bae94`.
+Os arquivos de implementação pertencem ao repositório `justdoit-frontend`, branch `qualidade`. A implementação inicial está no commit `53a1678`, a separação da lógica de mitigação no commit `04bae94` e o monitoramento de métricas reais no commit `6123806`.
 
 ## Evidências de validação
 
-- Suíte completa do frontend: 16 arquivos de teste aprovados e 81 testes aprovados.
-- Testes da métrica na pasta `qualidade`: 6 testes aprovados.
+- Suíte completa do frontend: 17 arquivos de teste aprovados e 86 testes aprovados.
+- Testes da métrica na pasta `qualidade`: leitura fora da renderização, volume elevado, P75, INP e tarefas longas.
 - Testes de regressão da criação de tarefas: 4 testes aprovados.
 - Build Vite de produção concluído com sucesso.
 - Verificação `git diff --check` concluída sem erros.
@@ -59,6 +61,8 @@ Os arquivos de implementação pertencem ao repositório `justdoit-frontend`, br
 | Risco residual | 2 — Baixo |
 
 O risco residual deve ser acompanhado por métricas reais de interação, como INP, tarefas longas e tempo entre clique e atualização visual.
+
+As amostras coletadas ficam disponíveis em `globalThis.__JDI_METRICAS_QUALIDADE__` e cada nova medição emite o evento `jdi:metrica-qualidade`. O resumo P75 é produzido por `resumoResponsividade()`.
 
 ## Evidência original
 
