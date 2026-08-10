@@ -2,6 +2,7 @@ package com.justdoit.task.shared;
 
 import com.justdoit.common.validation.TextoSeguro;
 import jakarta.validation.constraints.Size;
+import java.util.UUID;
 
 /**
  * Criação/edição de uma nota da aba "Anotações". Título e conteúdo são
@@ -9,5 +10,6 @@ import jakarta.validation.constraints.Size;
  */
 public record NoteRequest(
     @Size(max = 255) @TextoSeguro String title,
-    @Size(max = 10000) @TextoSeguro String content
+    @Size(max = 10000) @TextoSeguro String content,
+    UUID categoryId
 ) {}
