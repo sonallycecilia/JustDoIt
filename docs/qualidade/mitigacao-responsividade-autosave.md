@@ -29,20 +29,21 @@ O acesso síncrono ao `localStorage` durante a montagem do formulário poderia a
 |---|---|
 | `src/features/tasks/hooks/useRascunhoTarefa.js` | Agendamento ocioso, leitura assíncrona, debounce, cancelamento e gravação no desmonte |
 | `src/features/tasks/components/TaskEditor.jsx` | Restauração assíncrona e proteção contra sobrescrita de texto novo |
-| `src/features/tasks/hooks/useRascunhoTarefa.test.jsx` | Testes da persistência, restauração, adiamento da leitura e concorrência com digitação |
+| `src/features/tasks/qualidade/ResponsividadeAutosaveMetrics.test.jsx` | Métrica de leituras síncronas na primeira renderização e testes da persistência, restauração e concorrência com digitação |
 
-Os arquivos de implementação pertencem ao repositório `justdoit-frontend`, branch `qualidade`, commit `53a1678`.
+Os arquivos de implementação pertencem ao repositório `justdoit-frontend`, branch `qualidade`, commit `53a1678`. A organização da métrica na pasta `qualidade` está no commit `9a3164d`.
 
 ## Evidências de validação
 
 - Suíte completa do frontend: 16 arquivos de teste aprovados e 81 testes aprovados.
-- Testes diretamente relacionados: 10 testes aprovados após o ajuste de concorrência.
+- Testes da métrica na pasta `qualidade`: 6 testes aprovados.
+- Testes de regressão da criação de tarefas: 4 testes aprovados.
 - Build Vite de produção concluído com sucesso.
 - Verificação `git diff --check` concluída sem erros.
 
 ## Critérios de aceitação
 
-- A primeira renderização não acessa o rascunho no `localStorage`.
+- A primeira renderização não acessa o rascunho no `localStorage` (`X = 0` leitura síncrona no caminho crítico).
 - O rascunho continua sendo restaurado ao retornar à criação de tarefa.
 - A saída da página antes do debounce não perde dados.
 - O registro bem-sucedido da tarefa elimina o rascunho.
