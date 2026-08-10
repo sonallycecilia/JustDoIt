@@ -1,5 +1,7 @@
 .gradle/
 build/
+.tools/
+quality-test.log
 # Saída de compilação das IDEs (IntelliJ: out/, Eclipse/VS Code: bin/)
 out/
 bin/
@@ -7,6 +9,10 @@ bin/
 .vscode/
 .claude/
 docs/
+!docs/
+docs/*
+!docs/quality/
+!docs/quality/*.md
 
 # Segredos / variaveis de ambiente (NUNCA commitar)
 .env
