@@ -1,0 +1,1 @@
+ALTER TABLE weekly_summary ADD COLUMN data_status VARCHAR(255);

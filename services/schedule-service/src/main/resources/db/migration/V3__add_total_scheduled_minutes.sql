@@ -1,0 +1,1 @@
+ALTER TABLE weekly_summary ADD COLUMN total_scheduled_minutes INT;

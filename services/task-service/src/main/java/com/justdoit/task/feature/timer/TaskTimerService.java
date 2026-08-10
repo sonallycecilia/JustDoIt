@@ -1,7 +1,8 @@
 package com.justdoit.task.feature.timer;
+
 import com.justdoit.task.feature.task.TaskRepository;
 import com.justdoit.task.feature.task.Task;
-
+import com.justdoit.task.feature.weeklyclosure.domain.CycleMutabilityGuard; // Import do Guard
 import com.justdoit.task.shared.ActiveTimerResponse;
 import com.justdoit.task.shared.TaskTimerRequest;
 import com.justdoit.task.shared.TaskTimerResponse;
@@ -23,6 +24,7 @@ public class TaskTimerService {
     private final TaskTimerRepository timerRepository;
     private final ActiveTimerRepository activeTimerRepository;
     private final TimeEntryRepository timeEntryRepository;
+    private final CycleMutabilityGuard cycleMutabilityGuard; // Injeção do Guard
 
     public TaskTimerResponse getTimer(UUID taskId, UUID userId) {
         taskRepository.findByIdAndUserId(taskId, userId)
@@ -36,15 +38,14 @@ public class TaskTimerService {
     public TaskTimerResponse upsertTimer(UUID taskId, TaskTimerRequest request, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId()); // Proteção
+
         TaskTimer timer = timerRepository.findByTaskId(taskId)
                 .orElse(TaskTimer.builder().task(task).build());
         if (request.estimatedMinutes() != null) timer.setEstimatedMinutes(request.estimatedMinutes());
         if (request.actualSeconds() != null) {
             timer.setActualSeconds(request.actualSeconds());
-            // Este PUT DEFINE o total (não incrementa): é o "zerar cronômetro" e a
-            // gravação do tempo rodado antes de a tarefa existir. Os intervalos
-            // datados são reescritos para bater com o novo total, senão o
-            // acumulado e o /tasks/report contariam coisas diferentes.
             timeEntryRepository.deleteByTaskId(taskId);
             if (request.actualSeconds() > 0) {
                 registrarIntervalo(task, request.actualSeconds());
@@ -63,29 +64,22 @@ public class TaskTimerService {
     public TaskTimerResponse logSeconds(UUID taskId, Long seconds, TimeEntrySource source, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId()); // Proteção
+
         if (seconds != null && seconds > 0) {
             registrarIntervalo(task, seconds, source != null ? source : TimeEntrySource.MANUAL);
         }
         return somarSegundos(taskId, seconds);
     }
 
-    // ─────────────────────────────────────────────
-    // Cronômetro: start / stop
-    // ─────────────────────────────────────────────
-
-    /**
-     * Aciona o cronômetro da tarefa.
-     *
-     * @throws CronometroJaAtivoException se o usuário já estiver cronometrando alguma tarefa
-     */
     @Transactional
     public ActiveTimerResponse start(UUID taskId, UUID userId) {
-        taskRepository.findByIdAndUserId(taskId, userId)
+        Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        // Atalho para o caso comum (o usuário simplesmente já tem um cronômetro rodando).
-        // NÃO é a garantia: entre este if e o insert cabe outra thread. Quem assegura a
-        // exclusividade sob concorrência é o índice único em active_timer.user_id.
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId()); // Proteção
+
         if (activeTimerRepository.findByUserId(userId).isPresent()) {
             throw new CronometroJaAtivoException();
         }
@@ -98,19 +92,17 @@ public class TaskTimerService {
                     .build());
             return toResponse(ativo);
         } catch (DataIntegrityViolationException e) {
-            // Perdeu a corrida: outro acionamento simultâneo inseriu a linha deste usuário
-            // primeiro. saveAndFlush (e não save) para que a violação apareça aqui, e não
-            // no commit, onde já estaria fora deste try. A transação sofre rollback, o que
-            // é inofensivo: este insert é a única escrita da operação.
             throw new CronometroJaAtivoException();
         }
     }
 
-    /** Para o cronômetro e soma ao acumulado o tempo decorrido desde o start. */
     @Transactional
     public TaskTimerResponse stop(UUID taskId, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId()); // Proteção
+
         ActiveTimer ativo = activeTimerRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("No active timer"));
         if (!ativo.getTaskId().equals(taskId)) {
@@ -120,8 +112,7 @@ public class TaskTimerService {
         LocalDateTime fim = LocalDateTime.now();
         long decorridos = Math.max(0, Duration.between(ativo.getStartedAt(), fim).getSeconds());
         activeTimerRepository.delete(ativo);
-        // Aqui as datas são reais (o início veio do servidor, no start), então o
-        // intervalo cai no dia certo mesmo se atravessar a madrugada.
+
         if (decorridos > 0) {
             timeEntryRepository.save(TimeEntry.builder()
                     .task(task)
@@ -133,6 +124,7 @@ public class TaskTimerService {
         }
         return somarSegundos(taskId, decorridos);
     }
+    
 
     public ActiveTimerResponse getActive(UUID userId) {
         return activeTimerRepository.findByUserId(userId)
