@@ -8,7 +8,7 @@ import java.util.UUID;
 public interface ActiveTimerRepository extends JpaRepository<ActiveTimer, UUID> {
 
     Optional<ActiveTimer> findByUserId(UUID userId);
-
+    Optional<ActiveTimer> findByTaskId(UUID taskId);
     /**
      * Quantos cronômetros ativos o usuário tem. Só pode ser 0 ou 1 — existe para que o teste
      * da métrica verifique isso no banco em vez de confiar na constraint.

@@ -38,6 +38,8 @@ public class Task {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "cycle_id")
+    private UUID cycleId;
     // Vínculo de série cíclica: nas ocorrências GERADAS por uma tarefa recorrente,
     // aponta para o id da tarefa-modelo. Null em tarefas normais e no próprio modelo.
     // Permite contar/limitar quantas ocorrências futuras existem e limpá-las.

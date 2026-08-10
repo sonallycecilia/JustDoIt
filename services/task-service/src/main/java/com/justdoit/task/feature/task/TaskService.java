@@ -11,6 +11,8 @@ import com.justdoit.task.feature.category.Category;
 import com.justdoit.task.feature.category.CategoryRepository;
 import com.justdoit.task.feature.cycle.CycleConfig;
 import com.justdoit.task.feature.cycle.CycleConfigRepository;
+import com.justdoit.task.feature.weeklyclosure.domain.CycleMutabilityGuard;
+import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycleProvisioningService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,8 @@ public class TaskService {
     private final CategoryRepository categoryRepository;
     private final CycleConfigRepository cycleConfigRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CycleMutabilityGuard cycleMutabilityGuard;
+    private final WeeklyCycleProvisioningService cycleProvisioningService;
 
     @Transactional
     public TaskResponse createTask(TaskRequest request, UUID userId) {
@@ -40,8 +44,14 @@ public class TaskService {
             category = categoryRepository.findByIdAndUserId(request.categoryId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Category not found"));
         }
+        // Toda tarefa nova precisa pertencer ao ciclo semanal OPEN vigente do
+        // usuário. Sem isso, ela nunca aparece na prévia/fechamento semanal
+        // (que filtram por cycle_id) e o guard de imutabilidade nunca a trava
+        // quando o ciclo fecha.
+        UUID currentCycleId = cycleProvisioningService.getOrCreateCurrentCycle(userId).getId();
         Task task = Task.builder()
                 .userId(userId)
+                .cycleId(currentCycleId)
                 .category(category)
                 .title(request.title())
                 .description(request.description())
@@ -57,21 +67,26 @@ public class TaskService {
     public TaskResponse updateTask(UUID taskId, TaskRequest request, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId());
+
         if (request.categoryId() != null) {
             Category category = categoryRepository.findByIdAndUserId(request.categoryId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Category not found"));
             task.setCategory(category);
         } else {
-            // categoryId nulo = tarefa sem categoria ("Genérico"). O PUT envia o
-            // corpo completo, então nulo é intencional (remover a categoria), não
-            // "não mexer". Sem este else, mover para Genérico não persistia.
             task.setCategory(null);
         }
+        
         task.setTitle(request.title());
         task.setDescription(request.description());
         task.setDueDate(request.dueDate());
         task.setDueTime(request.dueTime());
-        if (request.priority() != null) task.setPriority(request.priority());
+        
+        if (request.priority() != null) {
+            task.setPriority(request.priority());
+        }
+        
         return toResponse(taskRepository.save(task));
     }
 
@@ -79,13 +94,24 @@ public class TaskService {
     public void deleteTask(UUID taskId, UUID userId, DeleteScope scope) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId());
+
         if (scope == DeleteScope.SERIES) {
             UUID rootId = task.getSeriesId() != null ? task.getSeriesId() : task.getId();
             Task root = task.getSeriesId() == null
                     ? task
                     : taskRepository.findByIdAndUserId(rootId, userId)
                         .orElseThrow(() -> new IllegalArgumentException("Task series not found"));
-            taskRepository.deleteAll(taskRepository.findBySeriesIdAndUserId(rootId, userId));
+            
+            cycleMutabilityGuard.ensureTaskIsMutable(root.getCycleId());
+
+            List<Task> seriesTasks = taskRepository.findBySeriesIdAndUserId(rootId, userId);
+            for (Task t : seriesTasks) {
+                cycleMutabilityGuard.ensureTaskIsMutable(t.getCycleId());
+            }
+
+            taskRepository.deleteAll(seriesTasks);
             taskRepository.delete(root);
             return;
         }
@@ -139,10 +165,13 @@ public class TaskService {
     public TaskResponse completeTask(UUID taskId, UUID userId, String authorizationHeader) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId());
+
         task.setStatus(TaskStatus.COMPLETED);
         task.setCompletedAt(LocalDateTime.now());
         TaskResponse response = toResponse(taskRepository.save(task));
-        // Consumido após o commit (TaskCompletedListener) para notificar o usuário.
+        
         eventPublisher.publishEvent(new TaskCompletedEvent(task.getId(), task.getTitle(), authorizationHeader));
         return response;
     }
@@ -151,6 +180,9 @@ public class TaskService {
     public TaskResponse reopenTask(UUID taskId, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId());
+
         task.setStatus(TaskStatus.PENDING);
         task.setCompletedAt(null);
         return toResponse(taskRepository.save(task));
@@ -160,6 +192,9 @@ public class TaskService {
     public SubTaskResponse addSubTask(UUID taskId, SubTaskRequest request, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId());
+
         SubTask subTask = SubTask.builder()
                 .task(task)
                 .title(request.title())
@@ -190,8 +225,11 @@ public class TaskService {
     }
 
     private SubTask findOwnedSubTask(UUID taskId, UUID subTaskId, UUID userId) {
-        taskRepository.findByIdAndUserId(taskId, userId)
+        Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        
+        cycleMutabilityGuard.ensureTaskIsMutable(task.getCycleId());
+
         return subTaskRepository.findById(subTaskId)
                 .filter(s -> s.getTask().getId().equals(taskId))
                 .orElseThrow(() -> new IllegalArgumentException("SubTask not found"));
