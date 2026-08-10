@@ -27,11 +27,12 @@ O acesso síncrono ao `localStorage` durante a montagem do formulário poderia a
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `src/features/tasks/hooks/useRascunhoTarefa.js` | Agendamento ocioso, leitura assíncrona, debounce, cancelamento e gravação no desmonte |
+| `src/features/tasks/qualidade/responsividadeAutosave.js` | Código isolado da mitigação: agendamento ocioso, limite, fallback, cancelamento e meta da métrica |
+| `src/features/tasks/hooks/useRascunhoTarefa.js` | Fluxo funcional do rascunho, debounce e gravação no desmonte; delega o agendamento à camada de qualidade |
 | `src/features/tasks/components/TaskEditor.jsx` | Restauração assíncrona e proteção contra sobrescrita de texto novo |
 | `src/features/tasks/qualidade/ResponsividadeAutosaveMetrics.test.jsx` | Métrica de leituras síncronas na primeira renderização e testes da persistência, restauração e concorrência com digitação |
 
-Os arquivos de implementação pertencem ao repositório `justdoit-frontend`, branch `qualidade`, commit `53a1678`. A organização da métrica na pasta `qualidade` está no commit `9a3164d`.
+Os arquivos de implementação pertencem ao repositório `justdoit-frontend`, branch `qualidade`. A implementação inicial está no commit `53a1678`, a organização da métrica no commit `9a3164d` e a separação da lógica de mitigação no commit `04bae94`.
 
 ## Evidências de validação
 
