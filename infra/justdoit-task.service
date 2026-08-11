@@ -5,6 +5,8 @@ After=network.target
 [Service]
 User=ubuntu
 WorkingDirectory=/opt/justdoit
+StateDirectory=justdoit/exports
+Environment=EXPORT_STORAGE_PATH=/var/lib/justdoit/exports
 EnvironmentFile=/opt/justdoit/.env
 ExecStart=/usr/bin/java -jar /opt/justdoit/task-service.jar
 Restart=always

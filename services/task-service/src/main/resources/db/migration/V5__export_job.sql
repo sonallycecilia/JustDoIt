@@ -1,0 +1,20 @@
+CREATE TABLE export_job (
+    id BINARY(16) NOT NULL,
+    user_id BINARY(16) NOT NULL,
+    format VARCHAR(16) NOT NULL,
+    status VARCHAR(24) NOT NULL,
+    storage_key VARCHAR(255) NULL,
+    file_name VARCHAR(255) NULL,
+    record_count BIGINT NULL,
+    file_size_bytes BIGINT NULL,
+    duration_ms BIGINT NULL,
+    error_message VARCHAR(1000) NULL,
+    created_at DATETIME(6) NOT NULL,
+    started_at DATETIME(6) NULL,
+    completed_at DATETIME(6) NULL,
+    download_expires_at DATETIME(6) NULL,
+    CONSTRAINT pk_export_job PRIMARY KEY (id),
+    INDEX idx_export_job_user_created (user_id, created_at),
+    INDEX idx_export_job_status (status),
+    INDEX idx_export_job_expiration (status, download_expires_at)
+) ENGINE=InnoDB;
