@@ -106,13 +106,27 @@ class TaskControllerTest {
         TaskResponse occurrence = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
                 null, TaskStatus.PENDING, Priority.NORMAL, null, null,
                 LocalDateTime.now(), LocalDateTime.now(), seriesId, null);
-        when(taskService.getAllTasksByUser(USER_ID)).thenReturn(List.of(occurrence));
+        when(taskService.getTasksByUser(USER_ID, null)).thenReturn(List.of(occurrence));
 
         mockMvc.perform(get("/tasks")
                         .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(TASK_ID.toString()))
                 .andExpect(jsonPath("$[0].seriesId").value(seriesId.toString()));
+    }
+
+    // Cobre o novo parâmetro opcional: quando o cliente manda ?status=, o
+    // controller precisa repassar o enum já convertido pro service.
+    @Test
+    void getAllTasks_withStatusFilter_passesStatusToService() throws Exception {
+        when(taskService.getTasksByUser(USER_ID, TaskStatus.COMPLETED)).thenReturn(List.of());
+
+        mockMvc.perform(get("/tasks")
+                        .param("status", "COMPLETED")
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isOk());
+
+        verify(taskService).getTasksByUser(USER_ID, TaskStatus.COMPLETED);
     }
 
     @Test
