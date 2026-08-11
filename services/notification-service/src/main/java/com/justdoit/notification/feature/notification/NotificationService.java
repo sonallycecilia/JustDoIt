@@ -38,6 +38,19 @@ public class NotificationService {
     }
 
     @Transactional
+    public NotificationResponse createInternalNotification(InternalNotificationRequest request) {
+        Notification notification = Notification.builder()
+                .userId(request.userId())
+                .taskId(request.taskId())
+                .type(request.type())
+                .title(request.title())
+                .message(request.message())
+                .read(false)
+                .build();
+        return toResponse(notificationRepository.save(notification));
+    }
+
+    @Transactional
     public void deleteNotification(UUID notificationId, UUID userId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .filter(n -> n.getUserId().equals(userId))

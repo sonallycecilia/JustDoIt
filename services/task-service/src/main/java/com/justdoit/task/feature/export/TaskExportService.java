@@ -81,7 +81,7 @@ public class TaskExportService {
         return "export_tarefas_" + date + "." + format.name().toLowerCase(Locale.ROOT);
     }
 
-    private static TaskExportResponse.TaskRow toRow(Task task) {
+    static TaskExportResponse.TaskRow toRow(Task task) {
         TaskTimer timer = task.getTimer();
         Integer estimatedMinutes = TaskEstimates.minutesOf(task);
 

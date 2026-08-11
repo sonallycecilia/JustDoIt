@@ -36,3 +36,17 @@ logging:
 
 jwt:
   secret: test-secret-key-please-change-256-bits-minimum-0123456789abcdef
+
+app:
+  export:
+    storage-path: ${java.io.tmpdir}/justdoit-test-exports
+    page-size: 50
+    max-concurrency: 2
+    queue-capacity: 4
+    max-active-per-user: 1
+    max-records: 10000
+    max-file-size-bytes: 10485760
+    max-duration: 30s
+    download-ttl: 5m
+    public-api-base-url: http://localhost:8081
+    download-secret: test-export-download-secret-at-least-32-bytes
