@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -111,6 +111,27 @@ class NotificationControllerTest {
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(patch("/notifications/{id}/read", NOTIF_ID)
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteNotification_returnsNoContent() throws Exception {
+        mockMvc.perform(delete("/notifications/{id}", NOTIF_ID)
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isNoContent());
+
+        verify(notificationService).deleteNotification(NOTIF_ID, USER_ID);
+    }
+
+    @Test
+    void deleteNotification_notFound_returns404() throws Exception {
+        doThrow(new IllegalArgumentException("not found"))
+                .when(notificationService).deleteNotification(NOTIF_ID, USER_ID);
+
+        mockMvc.perform(delete("/notifications/{id}", NOTIF_ID)
                         .with(csrf())
                         .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isNotFound());

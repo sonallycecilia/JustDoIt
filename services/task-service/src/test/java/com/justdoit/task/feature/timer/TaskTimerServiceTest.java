@@ -1,6 +1,7 @@
 package com.justdoit.task.feature.timer;
 import com.justdoit.task.feature.task.TaskRepository;
 import com.justdoit.task.feature.task.Task;
+import com.justdoit.task.feature.weeklyclosure.domain.CycleMutabilityGuard;
 
 import com.justdoit.task.shared.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,7 @@ class TaskTimerServiceTest {
     @Mock private TaskTimerRepository timerRepository;
     @Mock private ActiveTimerRepository activeTimerRepository;
     @Mock private TimeEntryRepository timeEntryRepository;
+    @Mock private CycleMutabilityGuard cycleMutabilityGuard;
     @InjectMocks private TaskTimerService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");

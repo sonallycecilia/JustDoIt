@@ -46,6 +46,17 @@ public class NotificationController {
         }
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteNotification(@PathVariable UUID id,
+                                                   @AuthenticationPrincipal UUID userId) {
+        try {
+            notificationService.deleteNotification(id, userId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @GetMapping("/preferences")
     public ResponseEntity<NotificationPreferenceResponse> getPreferences(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(notificationService.getOrCreatePreference(userId));
