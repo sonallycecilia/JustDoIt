@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.justdoit.task.shared.TaskStatus;
 
 import java.util.List;
 import java.util.UUID;
@@ -30,8 +31,9 @@ public class TaskController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TaskResponse>> getAllTasks(@AuthenticationPrincipal UUID userId) {
-        return ResponseEntity.ok(taskService.getAllTasksByUser(userId));
+    public ResponseEntity<List<TaskResponse>> getAllTasks(@AuthenticationPrincipal UUID userId,
+                                                            @RequestParam(required = false) TaskStatus status) {
+        return ResponseEntity.ok(taskService.getTasksByUser(userId, status));
     }
 
     @GetMapping("/{id}")

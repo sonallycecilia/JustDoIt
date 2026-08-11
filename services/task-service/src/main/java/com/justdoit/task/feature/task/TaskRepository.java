@@ -23,8 +23,10 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
 
     List<Task> findAllByCycleId(UUID cycleId);
 
-    @Query("select t from Task t left join fetch t.cycleConfig left join fetch t.timer where t.userId = :userId")
-    List<Task> findByUserIdWithCycle(@Param("userId") UUID userId);
+     @Query("select t from Task t left join fetch t.cycleConfig left join fetch t.timer " +
+          "where t.userId = :userId and (:status is null or t.status = :status)")
+     List<Task> findByUserIdAndStatusWithCycle(@Param("userId") UUID userId,
+                                             @Param("status") TaskStatus status);
 
     @Query("select t from Task t left join fetch t.cycleConfig left join fetch t.timer "
          + "where t.id = :id and t.userId = :userId")

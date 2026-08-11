@@ -155,8 +155,8 @@ public class TaskService {
         return toResponse(task);
     }
 
-    public List<TaskResponse> getAllTasksByUser(UUID userId) {
-        return taskRepository.findByUserIdWithCycle(userId).stream()
+    public List<TaskResponse> getTasksByUser(UUID userId, TaskStatus status) {
+        return taskRepository.findByUserIdAndStatusWithCycle(userId, status).stream()
                 .map(this::toResponse)
                 .toList();
     }

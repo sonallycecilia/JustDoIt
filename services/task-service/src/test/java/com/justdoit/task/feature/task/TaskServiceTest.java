@@ -4,6 +4,9 @@ import com.justdoit.task.feature.category.Category;
 import com.justdoit.task.feature.category.CategoryRepository;
 import com.justdoit.task.feature.cycle.CycleConfig;
 import com.justdoit.task.feature.cycle.CycleConfigRepository;
+import com.justdoit.task.feature.weeklyclosure.domain.CycleMutabilityGuard;
+import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycle;
+import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycleProvisioningService;
 import com.justdoit.task.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +32,11 @@ class TaskServiceTest {
     @Mock private CategoryRepository categoryRepository;
     @Mock private CycleConfigRepository cycleConfigRepository;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
+    
+    // Novas dependências adicionadas ao Mockito
+    @Mock private CycleMutabilityGuard cycleMutabilityGuard;
+    @Mock private WeeklyCycleProvisioningService cycleProvisioningService;
+    
     @InjectMocks private TaskService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -49,6 +57,12 @@ class TaskServiceTest {
     @Test
     void createTask_withoutCategory_savesTask() {
         TaskRequest request = new TaskRequest("Test task", null, null, null, null, null, null);
+        
+        // Mock do ciclo semanal para não dar erro ao buscar o currentCycleId
+        WeeklyCycle mockCycle = mock(WeeklyCycle.class);
+        when(mockCycle.getId()).thenReturn(UUID.randomUUID());
+        when(cycleProvisioningService.getOrCreateCurrentCycle(USER_ID)).thenReturn(mockCycle);
+        
         when(taskRepository.save(any())).thenReturn(task);
 
         TaskResponse result = service.createTask(request, USER_ID);
@@ -64,6 +78,12 @@ class TaskServiceTest {
         TaskRequest request = new TaskRequest("Test task", null, null, CAT_ID, Priority.URGENT_IMPORTANT, null, null);
         Task taskWithCat = Task.builder().id(TASK_ID).userId(USER_ID).title("Test task")
                 .category(category).status(TaskStatus.PENDING).priority(Priority.URGENT_IMPORTANT).build();
+        
+        // Mock do ciclo semanal
+        WeeklyCycle mockCycle = mock(WeeklyCycle.class);
+        when(mockCycle.getId()).thenReturn(UUID.randomUUID());
+        when(cycleProvisioningService.getOrCreateCurrentCycle(USER_ID)).thenReturn(mockCycle);
+
         when(categoryRepository.findByIdAndUserId(CAT_ID, USER_ID)).thenReturn(Optional.of(category));
         when(taskRepository.save(any())).thenReturn(taskWithCat);
 
@@ -99,11 +119,13 @@ class TaskServiceTest {
     }
 
     @Test
-    void getAllTasksByUser_returnsList() {
+    void getTasksByUser_returnsList() {
         task.setSeriesId(SERIES_ID);
-        when(taskRepository.findByUserIdWithCycle(USER_ID)).thenReturn(List.of(task));
+        
+        when(taskRepository.findByUserIdAndStatusWithCycle(USER_ID, TaskStatus.PENDING))
+                .thenReturn(List.of(task));
 
-        List<TaskResponse> result = service.getAllTasksByUser(USER_ID);
+        List<TaskResponse> result = service.getTasksByUser(USER_ID, TaskStatus.PENDING);
 
         assertEquals(1, result.size());
         assertEquals(TASK_ID, result.get(0).id());
@@ -126,8 +148,6 @@ class TaskServiceTest {
 
     @Test
     void updateTask_nullCategory_clearsCategory() {
-        // Tarefa que já tem categoria; PUT com categoryId nulo deve removê-la
-        // (mover para "Genérico" = sem categoria).
         Task withCat = Task.builder().id(TASK_ID).userId(USER_ID).title("t")
                 .category(category).status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
         TaskRequest request = new TaskRequest("t", "d", null, null, null, null, null);
@@ -217,8 +237,6 @@ class TaskServiceTest {
         TaskResponse result = service.completeTask(TASK_ID, USER_ID, "Bearer token");
 
         assertEquals(TaskStatus.COMPLETED, result.status());
-        // registra QUANDO concluiu (base do /tasks/report) e publica o evento que
-        // vira notificação após o commit
         assertNotNull(task.getCompletedAt());
         verify(eventPublisher).publishEvent(any(TaskCompletedEvent.class));
     }
