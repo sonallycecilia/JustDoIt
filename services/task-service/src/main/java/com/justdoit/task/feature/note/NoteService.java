@@ -1,5 +1,7 @@
 package com.justdoit.task.feature.note;
 
+import com.justdoit.task.feature.category.Category;
+import com.justdoit.task.feature.category.CategoryRepository;
 import com.justdoit.task.shared.MeNoteRequest;
 import com.justdoit.task.shared.MeNoteResponse;
 import com.justdoit.task.shared.NoteRequest;
@@ -19,6 +21,7 @@ import java.util.UUID;
 public class NoteService {
 
     private final NoteRepository noteRepository;
+    private final CategoryRepository categoryRepository;
 
     // ---- Aba "Anotações": CRUD de notas do usuário ----
 
@@ -33,8 +36,10 @@ public class NoteService {
 
     @Transactional 
     public NoteResponse create(UUID userId, NoteRequest request) {
+        Category category = findCategory(userId, request.categoryId());
         Note note = Note.builder()
                 .userId(userId)
+                .category(category)
                 .title(request.title())
                 .content(request.content())
                 .pinned(false) // Toda nota nova nasce sem estar fixada.
@@ -53,6 +58,7 @@ public class NoteService {
         Note note = findOwned(userId, noteId);
         note.setTitle(request.title());
         note.setContent(request.content());
+        note.setCategory(findCategory(userId, request.categoryId()));
         return toResponse(noteRepository.saveAndFlush(note));
     }
 
@@ -121,12 +127,19 @@ public class NoteService {
                 .orElseThrow(() -> new IllegalArgumentException("Note not found"));
     }
 
+    private Category findCategory(UUID userId, UUID categoryId) {
+        if (categoryId == null) return null;
+        return categoryRepository.findByIdAndUserId(categoryId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+    }
+
     /**
      * Mapper manual: Converte a Entidade de Banco (Note) para o DTO (NoteResponse).
      * Evita que o frontend receba dados sensíveis ou irrelevantes que possam existir na tabela.
      */
     private NoteResponse toResponse(Note n) {
-        return new NoteResponse(n.getId(), n.getTitle(), n.getContent(), n.isPinned(),
+        return new NoteResponse(n.getId(), n.getTitle(), n.getContent(),
+                n.getCategory() != null ? n.getCategory().getId() : null, n.isPinned(),
                 n.getCreatedAt(), n.getUpdatedAt());
     }
 }

@@ -57,6 +57,7 @@ public class TaskService {
                 .description(request.description())
                 .dueDate(request.dueDate())
                 .dueTime(request.dueTime())
+                .reminderMinutesBefore(reminderFor(request))
                 .priority(request.priority() != null ? request.priority() : Priority.NORMAL)
                 .status(TaskStatus.PENDING)
                 .build();
@@ -82,11 +83,12 @@ public class TaskService {
         task.setDescription(request.description());
         task.setDueDate(request.dueDate());
         task.setDueTime(request.dueTime());
-        
+        task.setReminderMinutesBefore(reminderFor(request));
+
         if (request.priority() != null) {
             task.setPriority(request.priority());
         }
-        
+
         return toResponse(taskRepository.save(task));
     }
 
@@ -259,8 +261,15 @@ public class TaskService {
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
                 task.getSeriesId(),
-                task.getCycleConfig() != null ? task.getCycleConfig().getCycleType() : null
+                task.getCycleConfig() != null ? task.getCycleConfig().getCycleType() : null,
+                task.getReminderMinutesBefore()
         );
+    }
+
+    private Integer reminderFor(TaskRequest request) {
+        return request.dueDate() != null && request.dueTime() != null
+                ? request.reminderMinutesBefore()
+                : null;
     }
 
     private SubTaskResponse toSubTaskResponse(SubTask sub) {

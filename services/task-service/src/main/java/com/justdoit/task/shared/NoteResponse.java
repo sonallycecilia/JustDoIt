@@ -7,6 +7,7 @@ public record NoteResponse(
     UUID id,
     String title,
     String content,
+    UUID categoryId,
     boolean pinned,
     LocalDateTime createdAt,
     LocalDateTime updatedAt

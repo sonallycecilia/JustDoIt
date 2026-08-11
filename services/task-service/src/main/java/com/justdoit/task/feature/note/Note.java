@@ -1,5 +1,6 @@
 package com.justdoit.task.feature.note;
 
+import com.justdoit.task.feature.category.Category;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -33,6 +34,10 @@ public class Note {
     // relação do tipo "muitos para um": Muitas anotações podem pertencer a um mesmo usuário.
     @Column(name = "user_id", nullable = false)
     private UUID userId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     // define um titulo para a anotação, que será exibido posteriormente na listagem de anotações do usuário.
     @Column(length = 255)

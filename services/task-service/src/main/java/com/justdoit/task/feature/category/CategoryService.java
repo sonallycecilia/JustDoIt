@@ -2,6 +2,8 @@ package com.justdoit.task.feature.category;
 
 import com.justdoit.task.feature.task.Task;
 import com.justdoit.task.feature.task.TaskRepository;
+import com.justdoit.task.feature.note.Note;
+import com.justdoit.task.feature.note.NoteRepository;
 import com.justdoit.task.shared.CategoryRequest;
 import com.justdoit.task.shared.CategoryResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final TaskRepository taskRepository;
+    private final NoteRepository noteRepository;
 
     public List<CategoryResponse> getAllByUser(UUID userId) {
         return categoryRepository.findByUserId(userId).stream()
@@ -59,6 +62,9 @@ public class CategoryService {
         List<Task> tasks = taskRepository.findByCategoryIdAndUserId(id, userId);
         tasks.forEach(task -> task.setCategory(null));
         taskRepository.saveAll(tasks);
+        List<Note> notes = noteRepository.findByCategoryIdAndUserId(id, userId);
+        notes.forEach(note -> note.setCategory(null));
+        noteRepository.saveAll(notes);
         categoryRepository.delete(category);
     }
 

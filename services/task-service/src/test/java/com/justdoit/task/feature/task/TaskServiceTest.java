@@ -19,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -91,6 +93,35 @@ class TaskServiceTest {
 
         assertEquals(CAT_ID, result.categoryId());
         verify(categoryRepository).findByIdAndUserId(CAT_ID, USER_ID);
+    }
+
+    @Test
+    void createTask_withScheduledTime_persistsReminder() {
+        LocalDate dueDate = LocalDate.of(2026, 8, 11);
+        LocalTime dueTime = LocalTime.of(10, 30);
+        TaskRequest request = new TaskRequest(
+                "Reunião", null, null, null, Priority.NORMAL,
+                dueDate, dueTime, 15);
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = service.createTask(request, USER_ID);
+
+        ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(captor.capture());
+        assertEquals(15, captor.getValue().getReminderMinutesBefore());
+        assertEquals(15, response.reminderMinutesBefore());
+    }
+
+    @Test
+    void createTask_withoutScheduledTime_discardsReminder() {
+        TaskRequest request = new TaskRequest(
+                "Sem horário", null, null, null, Priority.NORMAL,
+                LocalDate.of(2026, 8, 11), null, 60);
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = service.createTask(request, USER_ID);
+
+        assertNull(response.reminderMinutesBefore());
     }
 
     @Test

@@ -45,4 +45,10 @@ public class Notification {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "scheduled_for")
+    private LocalDateTime scheduledFor;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
 }
