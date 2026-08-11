@@ -1,10 +1,13 @@
 package com.justdoit.task.feature.cycle;
 import com.justdoit.task.feature.task.TaskRepository;
 import com.justdoit.task.feature.task.Task;
+import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycle;
+import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycleProvisioningService;
 
 import com.justdoit.task.shared.CycleType;
 import com.justdoit.task.shared.IntervalUnit;
 import com.justdoit.task.shared.TaskStatus;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,9 +30,19 @@ class CycleMaterializerTest {
 
     @Mock private TaskRepository taskRepository;
     @Mock private CycleConfigRepository cycleConfigRepository;
+    @Mock private WeeklyCycleProvisioningService weeklyCycleProvisioningService;
+    @Mock private WeeklyCycle weeklyCycle;
     @InjectMocks private CycleMaterializer materializer;
 
     private static final UUID SERIE = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+    private static final UUID WEEKLY_CYCLE_ID = UUID.fromString("00000000-0000-0000-0000-0000000000bb");
+
+    @BeforeEach
+    void setUpWeeklyCycle() {
+        lenient().when(weeklyCycleProvisioningService.getOrCreateCurrentCycle(any(UUID.class)))
+                .thenReturn(weeklyCycle);
+        lenient().when(weeklyCycle.getId()).thenReturn(WEEKLY_CYCLE_ID);
+    }
 
     private CycleConfig config(CycleType type, LocalDate dueDate, LocalDate endDate) {
         Task modelo = Task.builder()

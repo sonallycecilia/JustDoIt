@@ -56,6 +56,12 @@ class TaskServiceTest {
                 .status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
     }
 
+    private void stubCurrentCycle() {
+        WeeklyCycle currentCycle = mock(WeeklyCycle.class);
+        when(currentCycle.getId()).thenReturn(UUID.randomUUID());
+        when(cycleProvisioningService.getOrCreateCurrentCycle(USER_ID)).thenReturn(currentCycle);
+    }
+
     @Test
     void createTask_withoutCategory_savesTask() {
         TaskRequest request = new TaskRequest("Test task", null, null, null, null, null, null);
@@ -102,6 +108,7 @@ class TaskServiceTest {
         TaskRequest request = new TaskRequest(
                 "Reunião", null, null, null, Priority.NORMAL,
                 dueDate, dueTime, 15);
+        stubCurrentCycle();
         when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         TaskResponse response = service.createTask(request, USER_ID);
@@ -117,6 +124,7 @@ class TaskServiceTest {
         TaskRequest request = new TaskRequest(
                 "Sem horário", null, null, null, Priority.NORMAL,
                 LocalDate.of(2026, 8, 11), null, 60);
+        stubCurrentCycle();
         when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         TaskResponse response = service.createTask(request, USER_ID);
