@@ -19,5 +19,14 @@ public record TaskResponse(
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
     UUID seriesId,
-    CycleType cycleType
-) {}
+    CycleType cycleType,
+    Integer reminderMinutesBefore
+) {
+    public TaskResponse(UUID id, UUID userId, UUID categoryId, String title, String description,
+                        Integer estimatedMinutes, TaskStatus status, Priority priority,
+                        LocalDate dueDate, LocalTime dueTime, LocalDateTime createdAt,
+                        LocalDateTime updatedAt, UUID seriesId, CycleType cycleType) {
+        this(id, userId, categoryId, title, description, estimatedMinutes, status, priority,
+                dueDate, dueTime, createdAt, updatedAt, seriesId, cycleType, null);
+    }
+}

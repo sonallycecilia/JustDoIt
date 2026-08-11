@@ -8,4 +8,5 @@ import java.util.UUID;
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
     List<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId);
     List<Notification> findByUserIdAndReadFalseOrderByCreatedAtDesc(UUID userId);
+    boolean existsByTaskIdAndType(UUID taskId, com.justdoit.notification.shared.NotificationType type);
 }

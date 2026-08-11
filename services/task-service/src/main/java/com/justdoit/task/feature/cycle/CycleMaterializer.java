@@ -160,6 +160,7 @@ public class CycleMaterializer {
                 .status(TaskStatus.PENDING)
                 .dueDate(data)
                 .dueTime(hora)
+                .reminderMinutesBefore(modelo.getReminderMinutesBefore())
                 .build();
     }
 }

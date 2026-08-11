@@ -65,6 +65,9 @@ public class Task {
     @Column(name = "due_time")
     private LocalTime dueTime;
 
+    @Column(name = "reminder_minutes_before")
+    private Integer reminderMinutesBefore;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private TaskStatus status = TaskStatus.PENDING;
