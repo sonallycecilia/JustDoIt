@@ -25,6 +25,7 @@ function MetricResult([string]$pattern, [int]$expectedDenominator, [string]$limi
 $timer = MetricResult 'CRON.METRO CONCORRENTE\]\s+A=(?<a>\d+).*?B=(?<b>\d+)' 130 '100%'
 $executedTime = MetricResult 'TEMPO EXECUTADO\]\s+A=(?<a>\d+)s.*?B=(?<b>\d+)s' 12000 '100%'
 $access = MetricResult 'M.TRICA SEGURAN.A\]\s+A=(?<a>\d+).*?B=(?<b>\d+)' 36 '100%'
+$session = MetricResult 'CICLO DE SESS.O BACKEND\]\s+A=(?<a>\d+).*?B=(?<b>\d+)' 5 '100%'
 $inputMatches = [regex]::Matches($log, 'M.TRICA SEGURAN.A - VALIDA..O DE ENTRADA\]\s+A=(?<a>\d+).*?B=(?<b>\d+)')
 $inputA = 0; $inputB = 0
 foreach ($match in $inputMatches) { $inputA += [int]$match.Groups['a'].Value; $inputB += [int]$match.Groups['b'].Value }
@@ -86,9 +87,11 @@ $header
 |---|---|---:|---:|---:|---:|
 | Bloqueio de acesso não autorizado | $($access.Status) | $($access.Numerator) bloqueios | $($access.Denominator) requisições inválidas | $($access.Result) | $($access.Limit) |
 | Validação do corpus malicioso | $inputStatus | $(if ($inputB) { $inputA } else { '—' }) rejeições | $(if ($inputB) { $inputB } else { 144 }) casos esperados | $inputResult | 100% |
-| Proteção do ciclo de sessão | PARCIAL / NÃO AGREGADA | — | Cenários ainda não formalizados | — | Não definido |
+| Proteção do ciclo de sessão (backend) | $(if ($session.Status -eq 'APROVADA') { 'IMPLEMENTADA / APROVADA' } else { $session.Status }) | $($session.Numerator) cenários corretos | $($session.Denominator) cenários obrigatórios | $($session.Result) | $($session.Limit) |
 
-O denominador de acesso é `4 endpoints × 9 condições sem credencial válida = 36`. O corpus de entrada esperado soma `36 Auth + 84 Task + 24 Notification = 144`. A proteção de sessão possui testes individuais, mas ainda não dispõe de fórmula agregadora estável.
+O denominador de acesso é `4 endpoints × 9 condições sem credencial válida = 36`. O corpus de entrada esperado soma `36 Auth + 84 Task + 24 Notification = 144`.
+
+A TPS usa `cenários corretos ÷ cenários testados × 100`. O componente backend exige 5/5: JWT expirado, rotação do refresh token, detecção de reutilização, logout e rate limiting. O componente frontend exige outros 7/7 no workflow próprio; assim, o contrato sistêmico possui denominador global de 12 cenários e só é aprovado quando os dois gates atingem 100%.
 "@ | Set-Content -Encoding utf8 (Join-Path $outputDir 'seguranca.md')
 
 Write-Host "Relatórios gerados em $outputDir"
