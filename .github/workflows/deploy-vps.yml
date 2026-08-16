@@ -62,27 +62,7 @@ jobs:
           set -Eeuo pipefail
 
           release_sha="$(git rev-parse HEAD)"
-          release_dir="deploy/release"
-          mkdir -p "$release_dir"
-
-          for service in auth-service task-service schedule-service notification-service; do
-            mapfile -t jars < <(
-              find "services/$service/build/libs" -maxdepth 1 -type f \
-                -name '*.jar' ! -name '*-plain.jar'
-            )
-
-            if [[ "${#jars[@]}" -ne 1 ]]; then
-              echo "Esperado exatamente um bootJar para $service; encontrados: ${#jars[@]}" >&2
-              exit 1
-            fi
-
-            cp "${jars[0]}" "$release_dir/$service.jar"
-          done
-
-          printf '%s\n' "$release_sha" > "$release_dir/REVISION"
-          archive="deploy/justdoit-release-$release_sha.tar.gz"
-          tar -czf "$archive" -C "$release_dir" .
-          sha256sum "$archive" > "$archive.sha256"
+          archive="$(bash scripts/package-release.sh deploy "$release_sha")"
 
           echo "sha=$release_sha" >> "$GITHUB_OUTPUT"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
