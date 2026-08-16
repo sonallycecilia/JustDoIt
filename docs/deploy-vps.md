@@ -7,13 +7,14 @@ deploy manual pela interface do GitHub, escolhendo um commit, tag ou branch.
 ## Fluxo
 
 1. O workflow baixa exatamente o commit aprovado pela qualidade.
-2. O Gradle gera os quatro JARs executáveis.
-3. Um pacote com a revisão é mantido como artifact por 14 dias.
-4. O pacote é enviado para a VPS por SSH.
-5. A VPS cria e valida um dump do MySQL em `/opt/justdoit/backups`.
-6. A VPS cria `/opt/justdoit/releases/<commit>` e atualiza o link `current`.
-7. Cada serviço é reiniciado e validado em `/actuator/health`.
-8. Se qualquer serviço falhar, os links voltam para a release anterior e os
+2. As versões das migrations Flyway são verificadas para impedir duplicatas.
+3. O Gradle gera os quatro JARs executáveis.
+4. Um pacote com a revisão é mantido como artifact por 14 dias.
+5. O pacote é enviado para a VPS por SSH.
+6. A VPS cria e valida um dump do MySQL em `/opt/justdoit/backups`.
+7. A VPS cria `/opt/justdoit/releases/<commit>` e atualiza o link `current`.
+8. Cada serviço é reiniciado e validado em `/actuator/health`.
+9. Se qualquer serviço falhar, os links voltam para a release anterior e os
    quatro serviços são reiniciados novamente.
 
 O arquivo `/opt/justdoit/.env` e o Redis não são substituídos durante o deploy.
