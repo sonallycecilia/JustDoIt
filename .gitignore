@@ -13,6 +13,7 @@ docs/
 docs/*
 !docs/quality/
 !docs/quality/*.md
+!docs/deploy-vps.md
 
 # Segredos / variaveis de ambiente (NUNCA commitar)
 .env

@@ -1,0 +1,120 @@
+name: Deploy VPS
+
+on:
+  workflow_run:
+    workflows: ["Qualidade"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, tag ou branch que será implantado
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: https://justdoitapi.duckdns.org
+
+    steps:
+      - name: Baixar o commit aprovado
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Gerar os JARs executáveis
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean bootJar --no-daemon --console=plain
+
+      - name: Montar pacote da release
+        id: release
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          release_sha="$(git rev-parse HEAD)"
+          release_dir="deploy/release"
+          mkdir -p "$release_dir"
+
+          for service in auth-service task-service schedule-service notification-service; do
+            mapfile -t jars < <(
+              find "services/$service/build/libs" -maxdepth 1 -type f \
+                -name '*.jar' ! -name '*-plain.jar'
+            )
+
+            if [[ "${#jars[@]}" -ne 1 ]]; then
+              echo "Esperado exatamente um bootJar para $service; encontrados: ${#jars[@]}" >&2
+              exit 1
+            fi
+
+            cp "${jars[0]}" "$release_dir/$service.jar"
+          done
+
+          printf '%s\n' "$release_sha" > "$release_dir/REVISION"
+          archive="deploy/justdoit-release-$release_sha.tar.gz"
+          tar -czf "$archive" -C "$release_dir" .
+          sha256sum "$archive" > "$archive.sha256"
+
+          echo "sha=$release_sha" >> "$GITHUB_OUTPUT"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Guardar pacote para auditoria e rollback
+        uses: actions/upload-artifact@v4
+        with:
+          name: justdoit-backend-${{ steps.release.outputs.sha }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            ${{ steps.release.outputs.archive }}
+            ${{ steps.release.outputs.archive }}.sha256
+
+      - name: Configurar acesso SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          : "${SSH_PRIVATE_KEY:?Secret VPS_SSH_PRIVATE_KEY não configurado}"
+          : "${SSH_KNOWN_HOSTS:?Secret VPS_KNOWN_HOSTS não configurado}"
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Implantar e verificar a release
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT || '22' }}
+          VPS_APP_DIR: ${{ vars.VPS_APP_DIR || '/opt/justdoit' }}
+        run: bash scripts/deploy-vps.sh "${{ steps.release.outputs.archive }}"

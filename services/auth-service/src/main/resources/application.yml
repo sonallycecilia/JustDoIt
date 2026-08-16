@@ -59,3 +59,13 @@ auth:
     enabled: ${AUTH_RATE_LIMIT_ENABLED:true}
     capacity: ${AUTH_RATE_LIMIT_CAPACITY:20}            # rajada máxima
     refill-per-minute: ${AUTH_RATE_LIMIT_REFILL:20}     # reposição sustentada
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true

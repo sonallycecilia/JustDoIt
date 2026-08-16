@@ -1,14 +1,17 @@
 [Unit]
 Description=JustDoIt auth-service
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 User=ubuntu
-WorkingDirectory=/opt/justdoit
+WorkingDirectory=/opt/justdoit/current
 EnvironmentFile=/opt/justdoit/.env
-ExecStart=/usr/bin/java -jar /opt/justdoit/auth-service.jar
+ExecStart=/usr/bin/java -jar /opt/justdoit/current/auth-service.jar
 Restart=always
 RestartSec=10
+SuccessExitStatus=143
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
