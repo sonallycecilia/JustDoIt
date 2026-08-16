@@ -57,7 +57,8 @@ app_dir="$2"
 archive="$3"
 release_dir="$app_dir/releases/$release_sha"
 current_link="$app_dir/current"
-services=(auth-service task-service schedule-service notification-service)
+services=(auth task schedule notification)
+artifacts=(auth-service.jar task-service.jar schedule-service.jar notification-service.jar)
 ports=(8080 8081 8082 8083)
 temp_dir=""
 
@@ -91,12 +92,14 @@ atomic_link() {
 
 activate_links() {
   local target_release="$1"
+  local index
 
   atomic_link "$target_release" "$current_link"
-  for service in "${services[@]}"; do
+  for index in "${!services[@]}"; do
     # Mantém compatibilidade com as unidades systemd antigas enquanto elas
     # ainda apontarem para /opt/justdoit/<serviço>.jar.
-    atomic_link "$target_release/$service.jar" "$app_dir/$service.jar"
+    atomic_link "$target_release/${artifacts[$index]}" \
+      "$app_dir/${artifacts[$index]}"
   done
 }
 
@@ -125,8 +128,12 @@ restart_and_check() {
   local index
 
   for index in "${!services[@]}"; do
-    sudo -n systemctl restart "justdoit-${services[$index]}.service"
-    wait_for_health "${services[$index]}" "${ports[$index]}"
+    if ! sudo -n systemctl restart "justdoit-${services[$index]}.service"; then
+      return 1
+    fi
+    if ! wait_for_health "${services[$index]}" "${ports[$index]}"; then
+      return 1
+    fi
   done
 }
 
@@ -155,9 +162,9 @@ if [[ ! -d "$release_dir" ]]; then
   mkdir -- "$temp_dir"
   tar -xzf "$archive" -C "$temp_dir"
 
-  for service in "${services[@]}"; do
-    if [[ ! -s "$temp_dir/$service.jar" ]]; then
-      echo "JAR ausente ou vazio no pacote: $service.jar" >&2
+  for artifact in "${artifacts[@]}"; do
+    if [[ ! -s "$temp_dir/$artifact" ]]; then
+      echo "JAR ausente ou vazio no pacote: $artifact" >&2
       exit 1
     fi
   done
@@ -180,8 +187,8 @@ fi
 if [[ -z "$previous_release" ]]; then
   legacy_release="$app_dir/releases/pre-deploy-$(date -u +%Y%m%dT%H%M%SZ)"
   legacy_complete=true
-  for service in "${services[@]}"; do
-    if [[ ! -f "$app_dir/$service.jar" ]]; then
+  for artifact in "${artifacts[@]}"; do
+    if [[ ! -f "$app_dir/$artifact" ]]; then
       legacy_complete=false
       break
     fi
@@ -189,8 +196,8 @@ if [[ -z "$previous_release" ]]; then
 
   if [[ "$legacy_complete" == true ]]; then
     mkdir -- "$legacy_release"
-    for service in "${services[@]}"; do
-      cp -L -- "$app_dir/$service.jar" "$legacy_release/$service.jar"
+    for artifact in "${artifacts[@]}"; do
+      cp -L -- "$app_dir/$artifact" "$legacy_release/$artifact"
     done
     previous_release="$legacy_release"
   fi
