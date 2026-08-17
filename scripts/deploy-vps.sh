@@ -142,10 +142,22 @@ mkdir -p -- "$app_dir/releases"
 backup_dir="$app_dir/backups"
 backup_timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 database_backup="$backup_dir/justdoit-pre-deploy-$backup_timestamp-$release_sha.sql.gz"
-db_password="$(grep -m1 '^SPRING_DATASOURCE_PASSWORD=' "$app_dir/.env" | cut -d= -f2-)"
+db_password="$(grep -m1 '^SPRING_DATASOURCE_PASSWORD=' "$app_dir/.env" | cut -d= -f2- || true)"
+jwt_secret="$(grep -m1 '^JWT_SECRET=' "$app_dir/.env" | cut -d= -f2- || true)"
 
 if [[ -z "$db_password" ]]; then
   echo "SPRING_DATASOURCE_PASSWORD não encontrado em $app_dir/.env" >&2
+  exit 1
+fi
+
+# Todos os serviços leem o mesmo EnvironmentFile. Falhar antes da troca dos
+# JARs evita um deploy em que o auth emite tokens que os demais recusam.
+if [[ -z "$jwt_secret" ]]; then
+  echo "JWT_SECRET não encontrado em $app_dir/.env" >&2
+  exit 1
+fi
+if (( ${#jwt_secret} < 32 )); then
+  echo "JWT_SECRET deve ter ao menos 32 caracteres" >&2
   exit 1
 fi
 

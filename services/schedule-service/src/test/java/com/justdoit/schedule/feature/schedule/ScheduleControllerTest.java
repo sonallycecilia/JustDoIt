@@ -3,11 +3,13 @@ package com.justdoit.schedule.feature.schedule;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.justdoit.common.security.JwtValidator;
 import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
+import com.justdoit.schedule.config.WebSecurityConfig;
 import com.justdoit.schedule.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ScheduleController.class)
+@Import(WebSecurityConfig.class)
 class ScheduleControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -44,6 +47,13 @@ class ScheduleControllerTest {
 
     @BeforeEach
     void setUp() {
+    }
+
+    @Test
+    void protectedEndpoint_withoutToken_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/time-blocks").param("date", TODAY.toString()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Autenticação necessária"));
     }
 
     @Test

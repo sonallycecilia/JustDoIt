@@ -222,10 +222,11 @@ class AuthIntegrationTest {
     }
 
     @Test
-    @DisplayName("me: deve retornar 403 quando não autenticado")
-    void me_deveRetornar403_quandoNaoAutenticado() throws Exception {
+    @DisplayName("me: deve retornar 401 quando não autenticado")
+    void me_deveRetornar401_quandoNaoAutenticado() throws Exception {
         mockMvc.perform(get("/auth/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Autenticação necessária"));
     }
 
     // ─────────────────────────────────────────────
@@ -250,10 +251,10 @@ class AuthIntegrationTest {
     }
 
     @Test
-    @DisplayName("logout: deve retornar 403 quando não autenticado")
-    void logout_deveRetornar403_quandoNaoAutenticado() throws Exception {
+    @DisplayName("logout: deve retornar 401 quando não autenticado")
+    void logout_deveRetornar401_quandoNaoAutenticado() throws Exception {
         mockMvc.perform(post("/auth/logout"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // ─────────────────────────────────────────────

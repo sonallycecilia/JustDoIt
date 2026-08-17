@@ -86,9 +86,9 @@ class TaskExportIntegrationTest {
 
     @Test
     @DisplayName("exportação sem token continua bloqueada")
-    void request_withoutTokenIsForbidden() throws Exception {
+    void request_withoutTokenIsUnauthorized() throws Exception {
         mockMvc.perform(post("/me/exports").param("format", "json"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     private void saveTask(UUID userId, String title) {
