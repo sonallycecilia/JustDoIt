@@ -216,7 +216,7 @@ class AuthAccessControlMetricsTest {
                 .compact();
 
         mockMvc.perform(get("/auth/me").header("Authorization", "Bearer " + tokenForjado))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // ─────────────────────────────────────────────

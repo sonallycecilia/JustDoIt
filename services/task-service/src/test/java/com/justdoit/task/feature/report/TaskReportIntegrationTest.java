@@ -139,6 +139,7 @@ class TaskReportIntegrationTest {
         mockMvc.perform(get("/tasks/report")
                         .param("from", SEG.toString())
                         .param("to", DOM.toString()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Autenticação necessária"));
     }
 }
