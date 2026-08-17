@@ -1,5 +1,6 @@
 package com.justdoit.task.feature.note;
 
+import com.justdoit.task.feature.category.Category;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,17 +11,18 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Anotação livre do usuário. Um usuário tem várias notas (aba "Anotações"), e
- * no máximo UMA marcada como {@code pinned} — a nota fixada, exibida no topo da
- * página To Do e servida pelo endpoint de compatibilidade {@code /me/note}.
- * A unicidade da nota fixada é garantida na camada de serviço (ver NoteService),
- * já que o MySQL não cria índice único parcial pelo ddl-auto.
+ * Entidade que representa a tabela "note" no banco de dados.
+ * task note - anotação especifica de uma tarefa
+ * note - são todas as anotações livres que um usuário pode fazer independente de tarefas
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+
+// cria um index para efetuar o processo de busca 
+// O banco de dados não precisa ler a tabela inteira para achar as notas de um usuário, ele vai direto ao ponto.
 @Table(name = "note", indexes = @Index(name = "idx_note_user", columnList = "user_id"))
 public class Note {
 
@@ -29,18 +31,27 @@ public class Note {
     @UuidGenerator
     private UUID id;
 
+    // relação do tipo "muitos para um": Muitas anotações podem pertencer a um mesmo usuário.
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    // define um titulo para a anotação, que será exibido posteriormente na listagem de anotações do usuário.
     @Column(length = 255)
     private String title;
 
+    //o corpo da anotação tem o tipo TEXT, que permite armazenar textos longos
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    // funcionalidade que permite fixar uma anotação no topo da lista de anotações
     @Column(nullable = false)
     private boolean pinned;
 
+    // criação e atualização da anotação são preenchidas automaticamente pelo banco de dados.
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

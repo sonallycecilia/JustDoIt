@@ -1,0 +1,51 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "type": "timeseries", "title": "Duração P95 da exportação",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(justdoit_export_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P95" }]
+    },
+    {
+      "type": "timeseries", "title": "Memória JVM usada",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [{ "expr": "sum(jvm_memory_used_bytes{application=\"task-service\"}) by (area)", "legendFormat": "{{area}}" }]
+    },
+    {
+      "type": "timeseries", "title": "Workers ativos e jobs na fila",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "justdoit_export_executor_active", "legendFormat": "ativos" },
+        { "expr": "justdoit_export_queue_size", "legendFormat": "na fila" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Registros e tamanho gerados",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        { "expr": "rate(justdoit_export_records_sum[5m])", "legendFormat": "registros/s" },
+        { "expr": "rate(justdoit_export_file_size_bytes_sum[5m])", "legendFormat": "bytes/s" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Erros, limites e timeouts",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "targets": [{ "expr": "sum(rate(justdoit_export_jobs_total{status=~\"failed|rejected\"}[5m])) by (reason, status)", "legendFormat": "{{status}} {{reason}}" }]
+    },
+    {
+      "type": "timeseries", "title": "Latência dos demais endpoints",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"task-service\",uri!~\"/me/export.*\"}[5m])) by (le, uri))", "legendFormat": "{{uri}}" }]
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 41,
+  "tags": ["justdoit", "export", "memory"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Exportação assíncrona",
+  "uid": "justdoit-task-export",
+  "version": 1
+}

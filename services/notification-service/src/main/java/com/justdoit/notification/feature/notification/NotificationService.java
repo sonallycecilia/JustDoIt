@@ -37,6 +37,27 @@ public class NotificationService {
         return toResponse(notificationRepository.save(notification));
     }
 
+    @Transactional
+    public NotificationResponse createInternalNotification(InternalNotificationRequest request) {
+        Notification notification = Notification.builder()
+                .userId(request.userId())
+                .taskId(request.taskId())
+                .type(request.type())
+                .title(request.title())
+                .message(request.message())
+                .read(false)
+                .build();
+        return toResponse(notificationRepository.save(notification));
+    }
+
+    @Transactional
+    public void deleteNotification(UUID notificationId, UUID userId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .filter(n -> n.getUserId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
+        notificationRepository.delete(notification);
+    }
+
     public List<NotificationResponse> getUnreadByUser(UUID userId) {
         return notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId).stream()
                 .map(this::toResponse)

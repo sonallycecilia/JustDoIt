@@ -11,12 +11,18 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
+  flyway:
+    enabled: true
+    table: flyway_task_history
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
 
 jwt:
   secret: ${JWT_SECRET}
@@ -29,3 +35,28 @@ app:
   # Segredo do endpoint interno do notification-service (fluxos sem usuário,
   # ex.: job de tarefas atrasadas). Vazio = job marca OVERDUE mas não notifica.
   internal-token: ${INTERNAL_API_TOKEN:}
+  export:
+    storage-path: ${EXPORT_STORAGE_PATH:./data/exports}
+    page-size: ${EXPORT_PAGE_SIZE:200}
+    max-concurrency: ${EXPORT_MAX_CONCURRENCY:2}
+    queue-capacity: ${EXPORT_QUEUE_CAPACITY:8}
+    max-active-per-user: ${EXPORT_MAX_ACTIVE_PER_USER:1}
+    max-records: ${EXPORT_MAX_RECORDS:1000000}
+    max-file-size-bytes: ${EXPORT_MAX_FILE_SIZE_BYTES:536870912}
+    max-duration: ${EXPORT_MAX_DURATION:30m}
+    download-ttl: ${EXPORT_DOWNLOAD_TTL:15m}
+    public-api-base-url: ${PUBLIC_TASK_API_URL:http://localhost:8081}
+    download-secret: ${EXPORT_DOWNLOAD_SECRET:${JWT_SECRET}}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: task-service

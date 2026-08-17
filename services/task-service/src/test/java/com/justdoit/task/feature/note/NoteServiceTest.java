@@ -4,6 +4,8 @@ import com.justdoit.task.shared.MeNoteRequest;
 import com.justdoit.task.shared.MeNoteResponse;
 import com.justdoit.task.shared.NoteRequest;
 import com.justdoit.task.shared.NoteResponse;
+import com.justdoit.task.feature.category.Category;
+import com.justdoit.task.feature.category.CategoryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -23,6 +25,7 @@ import static org.mockito.Mockito.*;
 class NoteServiceTest {
 
     @Mock private NoteRepository noteRepository;
+    @Mock private CategoryRepository categoryRepository;
     @InjectMocks private NoteService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -49,7 +52,7 @@ class NoteServiceTest {
     void create_savesUnpinned() {
         when(noteRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
 
-        service.create(USER_ID, new NoteRequest("Título", "Corpo"));
+        service.create(USER_ID, new NoteRequest("Título", "Corpo", null));
 
         ArgumentCaptor<Note> captor = ArgumentCaptor.forClass(Note.class);
         verify(noteRepository).saveAndFlush(captor.capture());
@@ -69,10 +72,33 @@ class NoteServiceTest {
         when(noteRepository.findByIdAndUserId(NOTE_ID, USER_ID)).thenReturn(Optional.of(note(NOTE_ID, false, "old")));
         when(noteRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
 
-        NoteResponse result = service.update(USER_ID, NOTE_ID, new NoteRequest("novo", "conteúdo"));
+        NoteResponse result = service.update(USER_ID, NOTE_ID, new NoteRequest("novo", "conteúdo", null));
 
         assertEquals("novo", result.title());
         assertEquals("conteúdo", result.content());
+    }
+
+    @Test
+    void create_withOwnedCategory_associatesIt() {
+        UUID categoryId = UUID.randomUUID();
+        Category category = Category.builder().id(categoryId).userId(USER_ID).name("Estudos").color("#123456").build();
+        when(categoryRepository.findByIdAndUserId(categoryId, USER_ID)).thenReturn(Optional.of(category));
+        when(noteRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+
+        NoteResponse result = service.create(USER_ID, new NoteRequest("Título", "Corpo", categoryId));
+
+        assertEquals(categoryId, result.categoryId());
+    }
+
+    @Test
+    void update_withCategoryFromAnotherUser_rejectsAssociation() {
+        UUID categoryId = UUID.randomUUID();
+        when(noteRepository.findByIdAndUserId(NOTE_ID, USER_ID)).thenReturn(Optional.of(note(NOTE_ID, false, "old")));
+        when(categoryRepository.findByIdAndUserId(categoryId, USER_ID)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.update(USER_ID, NOTE_ID, new NoteRequest("novo", "conteúdo", categoryId)));
+        verify(noteRepository, never()).saveAndFlush(any());
     }
 
     @Test

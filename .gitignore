@@ -1,11 +1,19 @@
 .gradle/
 build/
+.tools/
+quality-test.log
 # Saída de compilação das IDEs (IntelliJ: out/, Eclipse/VS Code: bin/)
 out/
 bin/
 .idea/
 .vscode/
 .claude/
+docs/
+!docs/
+docs/*
+!docs/quality/
+!docs/quality/*.md
+!docs/deploy-vps.md
 
 # Segredos / variaveis de ambiente (NUNCA commitar)
 .env
@@ -25,4 +33,3 @@ secrets/
 **/secrets/
 # Segredos de producao documentados localmente (removido do indice em 2026-07-03;
 # o historico ainda precisa ser expurgado com git filter-repo)
-docs/

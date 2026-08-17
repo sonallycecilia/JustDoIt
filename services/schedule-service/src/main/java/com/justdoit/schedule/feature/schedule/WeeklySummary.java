@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
+import com.justdoit.schedule.shared.SummaryDataStatus;
 
 @Data
 @Builder
@@ -23,6 +24,14 @@ public class WeeklySummary {
     @JoinColumn(name = "weekly_plan_id", unique = true, nullable = false)
     private WeeklyPlan weeklyPlan;
 
+    // AGENDADO: soma dos blocos que o usuário pôs no calendário nesta semana.
+    @Builder.Default
+    @Column(name = "total_scheduled_minutes")
+    private Integer totalScheduledMinutes = 0;
+
+    // ESTIMADO: soma das estimativas das tarefas que vencem na semana, vinda do
+    // task-service. É outra coisa: uma tarefa pode ter estimativa sem nunca ter
+    // entrado na agenda, e um bloco pode existir sem tarefa vinculada.
     @Builder.Default
     @Column(name = "total_estimated_minutes")
     private Integer totalEstimatedMinutes = 0;
@@ -42,4 +51,9 @@ public class WeeklySummary {
     @Builder.Default
     @Column(name = "total_tasks")
     private Integer totalTasks = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "data_status")
+    private SummaryDataStatus dataStatus = SummaryDataStatus.COMPLETE;
 }

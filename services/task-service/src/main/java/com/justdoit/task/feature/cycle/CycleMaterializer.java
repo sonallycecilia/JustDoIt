@@ -5,6 +5,7 @@ import com.justdoit.task.feature.task.Task;
 import com.justdoit.task.shared.CycleType;
 import com.justdoit.task.shared.IntervalUnit;
 import com.justdoit.task.shared.TaskStatus;
+import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycleProvisioningService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class CycleMaterializer {
 
     private final TaskRepository taskRepository;
     private final CycleConfigRepository cycleConfigRepository;
+    private final WeeklyCycleProvisioningService weeklyCycleProvisioningService;
 
     /** Quantas ocorrências futuras (geradas) manter por série. Poucas de propósito. */
     public static final int MAX_FUTURAS = 4;
@@ -144,8 +146,12 @@ public class CycleMaterializer {
     // Ocorrência = cópia do modelo COM data/hora (aparece no calendário), marcada com
     // a série. Não leva subtarefas/timer/nota/cycle-config — só os campos base.
     private Task ocorrencia(Task modelo, LocalDate data, LocalTime hora, UUID serie) {
+        UUID currentWeeklyCycleId = weeklyCycleProvisioningService
+                .getOrCreateCurrentCycle(modelo.getUserId())
+                .getId();
         return Task.builder()
                 .userId(modelo.getUserId())
+                .cycleId(currentWeeklyCycleId)
                 .seriesId(serie)
                 .category(modelo.getCategory())
                 .title(modelo.getTitle())
@@ -154,6 +160,7 @@ public class CycleMaterializer {
                 .status(TaskStatus.PENDING)
                 .dueDate(data)
                 .dueTime(hora)
+                .reminderMinutesBefore(modelo.getReminderMinutesBefore())
                 .build();
     }
 }

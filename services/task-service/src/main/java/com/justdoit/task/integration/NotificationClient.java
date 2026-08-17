@@ -10,6 +10,8 @@ import org.springframework.web.client.RestClient;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Cliente HTTP para o notification-service (espelho do TaskServiceClient do
@@ -81,6 +83,32 @@ public class NotificationClient {
                     .toBodilessEntity();
         } catch (Exception e) {
             log.warn("Falha (ignorada) ao notificar atraso da task {}: {}", taskId, e.getMessage());
+        }
+    }
+
+    public void notifyExportReady(UUID userId, String downloadUrl, LocalDateTime expiresAt) {
+        if (internalToken == null || internalToken.isBlank()) {
+            log.debug("INTERNAL_API_TOKEN ausente; notificação da exportação não enviada");
+            return;
+        }
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("userId", userId);
+            body.put("type", "EXPORT_READY");
+            body.put("title", "Exportação pronta");
+            body.put("message", "Seu arquivo está pronto. Link temporário (expira em "
+                    + expiresAt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                    + " UTC): " + downloadUrl);
+            restClient.post()
+                    .uri("/internal/notifications")
+                    .header("X-Internal-Token", internalToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.warn("Falha (ignorada) ao notificar exportação do usuário {}: {}",
+                    userId, e.getMessage());
         }
     }
 

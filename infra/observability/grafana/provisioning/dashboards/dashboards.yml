@@ -1,0 +1,9 @@
+apiVersion: 1
+
+providers:
+  - name: JustDoIt
+    folder: JustDoIt
+    type: file
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

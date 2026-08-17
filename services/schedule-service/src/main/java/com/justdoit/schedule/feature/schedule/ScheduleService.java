@@ -65,23 +65,88 @@ public class ScheduleService {
         timeBlockRepository.delete(block);
     }
 
+    /**
+     * Abre o plano da semana, ou devolve o que já existe.
+     *
+     * Idempotente de propósito: o frontend chama isto toda vez que a Análise
+     * carrega, e criar um plano novo a cada visita encheria o banco de semanas
+     * duplicadas, cada uma com o seu resumo.
+     */
     @Transactional
     public WeeklyPlanResponse createWeeklyPlan(WeeklyPlanRequest request, UUID userId) {
-        WeeklyPlan plan = WeeklyPlan.builder()
-                .userId(userId)
-                .weekStartDate(request.weekStartDate())
-                .weekEndDate(request.weekEndDate())
-                .status(ScheduleStatus.OPEN)
-                .build();
-        return toWeeklyPlanResponse(weeklyPlanRepository.save(plan));
+        return weeklyPlanRepository.findByUserIdAndWeekStartDate(userId, request.weekStartDate())
+                .map(this::toWeeklyPlanResponse)
+                .orElseGet(() -> toWeeklyPlanResponse(weeklyPlanRepository.save(WeeklyPlan.builder()
+                        .userId(userId)
+                        .weekStartDate(request.weekStartDate())
+                        .weekEndDate(request.weekEndDate())
+                        .status(ScheduleStatus.OPEN)
+                        .build())));
     }
 
+    /** Plano de uma semana pelo dia de início (o frontend conhece a data, não o id). */
+    public Optional<WeeklyPlanResponse> findWeeklyPlan(LocalDate weekStartDate, UUID userId) {
+        return weeklyPlanRepository.findByUserIdAndWeekStartDate(userId, weekStartDate)
+                .map(this::toWeeklyPlanResponse);
+    }
+
+    public List<WeeklyPlanResponse> findWeeklyPlans(LocalDate from, LocalDate to, UUID userId) {
+        if (from == null || to == null || to.isBefore(from)) {
+            throw new IllegalArgumentException("Período inválido");
+        }
+        return weeklyPlanRepository
+                .findByUserIdAndWeekStartDateBetweenOrderByWeekStartDateDesc(userId, from, to)
+                .stream().map(this::toWeeklyPlanResponse).toList();
+    }
+
+    /**
+     * Reúne todo o histórico em uma chamada pública. Internamente o task-service
+     * continua protegido pelo teto de 92 dias, por isso o intervalo é fatiado.
+     * O token do próprio usuário é repassado em cada chamada.
+     */
+    public AnalyticsOverallResponse getOverallAnalytics(LocalDate from, LocalDate to, UUID userId,
+                                                         String authorizationHeader) {
+        if (from == null || to == null || to.isBefore(from) || to.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Período inválido");
+        }
+
+        List<TaskReport> reports = new java.util.ArrayList<>();
+        LocalDate cursor = from;
+        while (!cursor.isAfter(to)) {
+            LocalDate chunkEnd = cursor.plusDays(91);
+            if (chunkEnd.isAfter(to)) chunkEnd = to;
+            TaskReport report = taskReportClient.getReport(authorizationHeader, cursor, chunkEnd)
+                    .orElseThrow(() -> new IllegalStateException("Task report unavailable"));
+            reports.add(report);
+            cursor = chunkEnd.plusDays(1);
+        }
+
+        List<TimeBlockResponse> blocks = getTimeBlocksBetween(from, to, userId);
+        return new AnalyticsOverallResponse(from, to, reports, blocks);
+    }
+
+    /**
+     * Fecha a semana. Gera o resumo uma última vez ANTES de marcar CLOSED: é esse
+     * retrato que fica congelado. Sem isso, fechar uma semana sem nunca ter
+     * aberto a Análise deixaria um plano fechado com resumo zerado.
+     */
     @Transactional
-    public WeeklyPlanResponse closeWeeklyPlan(UUID planId, UUID userId) {
+    public WeeklyPlanResponse closeWeeklyPlan(UUID planId, UUID userId, String authorizationHeader) {
         WeeklyPlan plan = weeklyPlanRepository.findByIdAndUserId(planId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Weekly plan not found"));
-        plan.setStatus(ScheduleStatus.CLOSED);
-        return toWeeklyPlanResponse(weeklyPlanRepository.save(plan));
+        if (plan.getStatus() != ScheduleStatus.CLOSED) {
+            generateWeeklySummary(planId, userId, authorizationHeader);
+            plan.setStatus(ScheduleStatus.CLOSED);
+            plan = weeklyPlanRepository.save(plan);
+        }
+        return toWeeklyPlanResponse(plan);
+    }
+
+    /** Resumo já salvo, sem recalcular nada. Vazio quando a semana nunca foi resumida. */
+    public Optional<WeeklySummaryResponse> findWeeklySummary(UUID planId, UUID userId) {
+        weeklyPlanRepository.findByIdAndUserId(planId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Weekly plan not found"));
+        return weeklySummaryRepository.findByWeeklyPlanId(planId).map(this::toWeeklySummaryResponse);
     }
 
     @Transactional
@@ -89,22 +154,31 @@ public class ScheduleService {
         WeeklyPlan plan = weeklyPlanRepository.findByIdAndUserId(planId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Weekly plan not found"));
 
+        // Semana fechada é retrato, não painel ao vivo: recalcular aqui apagaria
+        // justamente o que o fechamento quis preservar.
+        if (plan.getStatus() == ScheduleStatus.CLOSED) {
+            Optional<WeeklySummary> congelado = weeklySummaryRepository.findByWeeklyPlanId(planId);
+            if (congelado.isPresent()) {
+                return toWeeklySummaryResponse(congelado.get());
+            }
+        }
+
         List<TimeBlock> blocks = timeBlockRepository.findByUserIdAndDateBetween(
                 userId, plan.getWeekStartDate(), plan.getWeekEndDate()
         );
 
-        int totalEstimated = blocks.stream()
+        int totalScheduled = blocks.stream()
                 .mapToInt(b -> b.getEstimatedMinutes() != null ? b.getEstimatedMinutes() : 0)
                 .sum();
 
         WeeklySummary summary = weeklySummaryRepository.findByWeeklyPlanId(planId)
                 .orElse(WeeklySummary.builder().weeklyPlan(plan).build());
 
-        summary.setTotalEstimatedMinutes(totalEstimated);
+        summary.setTotalScheduledMinutes(totalScheduled);
 
-        // Dados reais (concluídas e tempo executado) vêm do task-service, com o
-        // token do próprio usuário. Sem resposta, o resumo sai só com o planejado
-        // local e a contagem de blocos — nunca falha por causa do outro serviço.
+        // Tarefas, tempo executado e estimativa vêm do task-service, com o token do
+        // próprio usuário. Sem resposta, o resumo sai só com o agendado local e a
+        // contagem de blocos — nunca falha por causa do outro serviço.
         Optional<TaskReport> report = taskReportClient.getReport(
                 authorizationHeader, plan.getWeekStartDate(), plan.getWeekEndDate());
         if (report.isPresent()) {
@@ -112,9 +186,14 @@ public class ScheduleService {
             summary.setTotalTasks((int) r.totalTasks());
             summary.setCompletedTasks((int) r.completedTasks());
             summary.setTotalActualSeconds(r.totalActualSeconds());
-            summary.setDeviationSeconds(r.totalActualSeconds() - totalEstimated * 60L);
+            summary.setTotalEstimatedMinutes((int) r.totalEstimatedMinutes());
+            summary.setDeviationSeconds(r.totalActualSeconds() - totalScheduled * 60L);
+            summary.setDataStatus(SummaryDataStatus.COMPLETE);
         } else {
-            summary.setTotalTasks(blocks.size());
+            // Não substitui tarefas por blocos: são entidades diferentes. O zero
+            // vem acompanhado de PARTIAL para nunca parecer um retrato completo.
+            summary.setTotalTasks(0);
+            summary.setDataStatus(SummaryDataStatus.PARTIAL);
         }
 
         return toWeeklySummaryResponse(weeklySummaryRepository.save(summary));
@@ -137,7 +216,9 @@ public class ScheduleService {
 
     private WeeklySummaryResponse toWeeklySummaryResponse(WeeklySummary s) {
         return new WeeklySummaryResponse(s.getId(), s.getWeeklyPlan().getId(),
-                s.getTotalEstimatedMinutes(), s.getTotalActualSeconds(),
-                s.getDeviationSeconds(), s.getCompletedTasks(), s.getTotalTasks());
+                s.getTotalScheduledMinutes(), s.getTotalEstimatedMinutes(),
+                s.getTotalActualSeconds(), s.getDeviationSeconds(),
+                s.getCompletedTasks(), s.getTotalTasks(),
+                s.getDataStatus() != null ? s.getDataStatus() : SummaryDataStatus.PARTIAL);
     }
 }

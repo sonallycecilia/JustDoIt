@@ -4,6 +4,7 @@ import com.justdoit.task.shared.SubTaskRequest;
 import com.justdoit.task.shared.SubTaskResponse;
 import com.justdoit.task.shared.TaskRequest;
 import com.justdoit.task.shared.TaskResponse;
+import com.justdoit.task.shared.DeleteScope;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.justdoit.task.shared.TaskStatus;
 
 import java.util.List;
 import java.util.UUID;
@@ -29,8 +31,9 @@ public class TaskController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TaskResponse>> getAllTasks(@AuthenticationPrincipal UUID userId) {
-        return ResponseEntity.ok(taskService.getAllTasksByUser(userId));
+    public ResponseEntity<List<TaskResponse>> getAllTasks(@AuthenticationPrincipal UUID userId,
+                                                            @RequestParam(required = false) TaskStatus status) {
+        return ResponseEntity.ok(taskService.getTasksByUser(userId, status));
     }
 
     @GetMapping("/{id}")
@@ -54,9 +57,11 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable UUID id, @AuthenticationPrincipal UUID userId) {
+    public ResponseEntity<Void> deleteTask(@PathVariable UUID id,
+                                           @RequestParam(defaultValue = "INSTANCE") DeleteScope scope,
+                                           @AuthenticationPrincipal UUID userId) {
         try {
-            taskService.deleteTask(id, userId);
+            taskService.deleteTask(id, userId, scope);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();

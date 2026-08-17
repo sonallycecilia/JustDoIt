@@ -94,6 +94,24 @@ class NotificationServiceTest {
     }
 
     @Test
+    void deleteNotification_deletesNotificationOwnedByUser() {
+        when(notificationRepository.findById(NOTIF_ID)).thenReturn(Optional.of(notification));
+
+        service.deleteNotification(NOTIF_ID, USER_ID);
+
+        verify(notificationRepository).delete(notification);
+    }
+
+    @Test
+    void deleteNotification_wrongUser_doesNotDelete() {
+        when(notificationRepository.findById(NOTIF_ID)).thenReturn(Optional.of(notification));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.deleteNotification(NOTIF_ID, UUID.randomUUID()));
+        verify(notificationRepository, never()).delete(any());
+    }
+
+    @Test
     void getUnreadByUser_returnsList() {
         when(notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(USER_ID))
                 .thenReturn(List.of(notification));

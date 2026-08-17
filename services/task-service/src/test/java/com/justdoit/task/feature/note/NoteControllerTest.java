@@ -35,7 +35,7 @@ class NoteControllerTest {
     private static final UUID NOTE_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
     private NoteResponse sample() {
-        return new NoteResponse(NOTE_ID, "Título", "Corpo", true, LocalDateTime.now(), LocalDateTime.now());
+        return new NoteResponse(NOTE_ID, "Título", "Corpo", null, true, LocalDateTime.now(), LocalDateTime.now());
     }
 
     @Test
@@ -56,7 +56,7 @@ class NoteControllerTest {
                         .with(csrf())
                         .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new NoteRequest("Título", "Corpo"))))
+                        .content(objectMapper.writeValueAsString(new NoteRequest("Título", "Corpo", null))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("Título"));
     }
@@ -67,7 +67,7 @@ class NoteControllerTest {
                         .with(csrf())
                         .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new NoteRequest("a".repeat(256), "ok"))))
+                        .content(objectMapper.writeValueAsString(new NoteRequest("a".repeat(256), "ok", null))))
                 .andExpect(status().isBadRequest());
     }
 

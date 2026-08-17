@@ -15,9 +15,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -85,6 +88,7 @@ class ScheduleControllerTest {
     void createWeeklyPlan_returnsCreated() throws Exception {
         WeeklyPlanRequest request = new WeeklyPlanRequest(TODAY, TODAY.plusDays(6));
         WeeklyPlanResponse response = new WeeklyPlanResponse(PLAN_ID, USER_ID, TODAY, TODAY.plusDays(6), ScheduleStatus.OPEN);
+        when(scheduleService.findWeeklyPlan(TODAY, USER_ID)).thenReturn(Optional.empty());
         when(scheduleService.createWeeklyPlan(any(), eq(USER_ID))).thenReturn(response);
 
         mockMvc.perform(post("/weekly-plans")
@@ -98,32 +102,73 @@ class ScheduleControllerTest {
     }
 
     @Test
+    void createWeeklyPlan_semanaJaAberta_returnsOk() throws Exception {
+        WeeklyPlanRequest request = new WeeklyPlanRequest(TODAY, TODAY.plusDays(6));
+        WeeklyPlanResponse response = new WeeklyPlanResponse(PLAN_ID, USER_ID, TODAY, TODAY.plusDays(6), ScheduleStatus.OPEN);
+        when(scheduleService.findWeeklyPlan(TODAY, USER_ID)).thenReturn(Optional.of(response));
+        when(scheduleService.createWeeklyPlan(any(), eq(USER_ID))).thenReturn(response);
+
+        // 200 (e não 201): reabrir a mesma semana não cria recurso novo
+        mockMvc.perform(post("/weekly-plans")
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(PLAN_ID.toString()));
+    }
+
+    @Test
+    void getWeeklyPlan_porDataDeInicio_returnsOk() throws Exception {
+        WeeklyPlanResponse response = new WeeklyPlanResponse(PLAN_ID, USER_ID, TODAY, TODAY.plusDays(6), ScheduleStatus.OPEN);
+        when(scheduleService.findWeeklyPlan(TODAY, USER_ID)).thenReturn(Optional.of(response));
+
+        mockMvc.perform(get("/weekly-plans")
+                        .param("weekStart", TODAY.toString())
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(PLAN_ID.toString()));
+    }
+
+    @Test
+    void getWeeklyPlan_semanaNaoAberta_returns404() throws Exception {
+        when(scheduleService.findWeeklyPlan(TODAY, USER_ID)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/weekly-plans")
+                        .param("weekStart", TODAY.toString())
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void closeWeeklyPlan_returnsOk() throws Exception {
         WeeklyPlanResponse response = new WeeklyPlanResponse(PLAN_ID, USER_ID, TODAY, TODAY.plusDays(6), ScheduleStatus.CLOSED);
-        when(scheduleService.closeWeeklyPlan(PLAN_ID, USER_ID)).thenReturn(response);
+        when(scheduleService.closeWeeklyPlan(eq(PLAN_ID), eq(USER_ID), anyString())).thenReturn(response);
 
         mockMvc.perform(patch("/weekly-plans/{id}/close", PLAN_ID)
                         .with(csrf())
-                        .with(authenticatedUser(USER_ID)))
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CLOSED"));
     }
 
     @Test
     void closeWeeklyPlan_notFound_returns404() throws Exception {
-        when(scheduleService.closeWeeklyPlan(PLAN_ID, USER_ID))
+        when(scheduleService.closeWeeklyPlan(eq(PLAN_ID), eq(USER_ID), anyString()))
                 .thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(patch("/weekly-plans/{id}/close", PLAN_ID)
                         .with(csrf())
-                        .with(authenticatedUser(USER_ID)))
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void generateWeeklySummary_returnsOk() throws Exception {
         WeeklySummaryResponse response = new WeeklySummaryResponse(
-                UUID.randomUUID(), PLAN_ID, 60, null, null, null, 1);
+                UUID.randomUUID(), PLAN_ID, 60, 90, null, null, null, 1);
         when(scheduleService.generateWeeklySummary(eq(PLAN_ID), eq(USER_ID), anyString())).thenReturn(response);
 
         mockMvc.perform(post("/weekly-plans/{id}/summary", PLAN_ID)
@@ -131,7 +176,8 @@ class ScheduleControllerTest {
                         .with(authenticatedUser(USER_ID))
                         .header("Authorization", "Bearer mock-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalEstimatedMinutes").value(60))
+                .andExpect(jsonPath("$.totalScheduledMinutes").value(60))
+                .andExpect(jsonPath("$.totalEstimatedMinutes").value(90))
                 .andExpect(jsonPath("$.totalTasks").value(1));
     }
 
@@ -150,13 +196,24 @@ class ScheduleControllerTest {
     @Test
     void getWeeklySummary_returnsOk() throws Exception {
         WeeklySummaryResponse response = new WeeklySummaryResponse(
-                UUID.randomUUID(), PLAN_ID, 120, null, null, null, 2);
-        when(scheduleService.generateWeeklySummary(eq(PLAN_ID), eq(USER_ID), anyString())).thenReturn(response);
+                UUID.randomUUID(), PLAN_ID, 120, 90, null, null, null, 2);
+        when(scheduleService.findWeeklySummary(PLAN_ID, USER_ID)).thenReturn(Optional.of(response));
 
         mockMvc.perform(get("/weekly-plans/{id}/summary", PLAN_ID)
-                        .with(authenticatedUser(USER_ID))
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalTasks").value(2));
+
+        // O GET não pode gerar nada: antes ele chamava o gerador e escrevia no banco
+        verify(scheduleService, never()).generateWeeklySummary(any(), any(), any());
+    }
+
+    @Test
+    void getWeeklySummary_semResumoAinda_returns404() throws Exception {
+        when(scheduleService.findWeeklySummary(PLAN_ID, USER_ID)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/weekly-plans/{id}/summary", PLAN_ID)
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isNotFound());
     }
 }

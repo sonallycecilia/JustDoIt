@@ -3,6 +3,7 @@ import com.justdoit.task.feature.cycle.CycleConfig;
 import com.justdoit.task.feature.focussession.FocusSession;
 import com.justdoit.task.feature.tasknote.TaskNote;
 import com.justdoit.task.feature.timer.TaskTimer;
+import com.justdoit.task.feature.timer.TimeEntry;
 import com.justdoit.task.feature.moduleconfig.TaskModuleConfig;
 
 import com.justdoit.task.shared.Priority;
@@ -37,6 +38,8 @@ public class Task {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "cycle_id")
+    private UUID cycleId;
     // Vínculo de série cíclica: nas ocorrências GERADAS por uma tarefa recorrente,
     // aponta para o id da tarefa-modelo. Null em tarefas normais e no próprio modelo.
     // Permite contar/limitar quantas ocorrências futuras existem e limpá-las.
@@ -61,6 +64,9 @@ public class Task {
 
     @Column(name = "due_time")
     private LocalTime dueTime;
+
+    @Column(name = "reminder_minutes_before")
+    private Integer reminderMinutesBefore;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
@@ -100,6 +106,12 @@ public class Task {
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<FocusSession> focusSessions = new ArrayList<>();
+
+    // Intervalos cronometrados (com data). O cascade é o que faz a exclusão da
+    // tarefa e a purga da conta (DELETE /me/data) levarem o histórico junto.
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<TimeEntry> timeEntries = new ArrayList<>();
 
     @OneToOne(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private CycleConfig cycleConfig;

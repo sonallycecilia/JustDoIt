@@ -1,0 +1,67 @@
+name: Qualidade
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metricas-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Verificar versões das migrations Flyway
+        shell: bash
+        run: bash scripts/check-flyway-migrations.sh
+
+      - name: Preparar Gradle Wrapper
+        shell: bash
+        run: chmod +x ./gradlew
+
+      - name: Executar testes e métricas
+        id: tests
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $testOutput = & ./gradlew test --no-daemon --console=plain 2>&1
+          $gradleExitCode = $LASTEXITCODE
+          $testOutput | Tee-Object -FilePath quality-test.log
+          exit $gradleExitCode
+
+      - name: Gerar relatórios por atributo
+        if: always()
+        shell: pwsh
+        run: |
+          ./scripts/generate-quality-reports.ps1 `
+            -Commit '${{ github.sha }}' `
+            -Environment 'GitHub Actions / ubuntu-latest / Temurin 21 / H2 em modo MySQL' `
+            -TestLog 'quality-test.log'
+
+      - name: Publicar relatórios e evidências
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualidade-backend-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            docs/quality/*.md
+            quality-test.log
+            **/build/test-results/test/**
+            **/build/reports/tests/test/**
+            **/build/reports/jacoco/test/**
+
+      - name: Aplicar gate dos testes
+        if: always() && steps.tests.outcome != 'success'
+        shell: pwsh
+        run: throw 'Os testes ou as métricas do backend falharam.'

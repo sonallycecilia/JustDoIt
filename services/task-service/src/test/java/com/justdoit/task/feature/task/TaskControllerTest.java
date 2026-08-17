@@ -39,7 +39,7 @@ class TaskControllerTest {
     void setUp() {
         taskResponse = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
                 null, TaskStatus.PENDING, Priority.NORMAL, null, null,
-                LocalDateTime.now(), LocalDateTime.now(), null);
+                LocalDateTime.now(), LocalDateTime.now(), null, null);
     }
 
     @Test
@@ -102,12 +102,31 @@ class TaskControllerTest {
 
     @Test
     void getAllTasks_returnsOk() throws Exception {
-        when(taskService.getAllTasksByUser(USER_ID)).thenReturn(List.of(taskResponse));
+        UUID seriesId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        TaskResponse occurrence = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
+                null, TaskStatus.PENDING, Priority.NORMAL, null, null,
+                LocalDateTime.now(), LocalDateTime.now(), seriesId, null);
+        when(taskService.getTasksByUser(USER_ID, null)).thenReturn(List.of(occurrence));
 
         mockMvc.perform(get("/tasks")
                         .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(TASK_ID.toString()));
+                .andExpect(jsonPath("$[0].id").value(TASK_ID.toString()))
+                .andExpect(jsonPath("$[0].seriesId").value(seriesId.toString()));
+    }
+
+    // Cobre o novo parâmetro opcional: quando o cliente manda ?status=, o
+    // controller precisa repassar o enum já convertido pro service.
+    @Test
+    void getAllTasks_withStatusFilter_passesStatusToService() throws Exception {
+        when(taskService.getTasksByUser(USER_ID, TaskStatus.COMPLETED)).thenReturn(List.of());
+
+        mockMvc.perform(get("/tasks")
+                        .param("status", "COMPLETED")
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isOk());
+
+        verify(taskService).getTasksByUser(USER_ID, TaskStatus.COMPLETED);
     }
 
     @Test
@@ -134,7 +153,7 @@ class TaskControllerTest {
         TaskRequest request = new TaskRequest("Updated", null, null, null, null, null, null);
         TaskResponse updated = new TaskResponse(TASK_ID, USER_ID, null, "Updated", null,
                 null, TaskStatus.PENDING, Priority.NORMAL, null, null,
-                LocalDateTime.now(), LocalDateTime.now(), null);
+                LocalDateTime.now(), LocalDateTime.now(), null, null);
         when(taskService.updateTask(eq(TASK_ID), any(), eq(USER_ID))).thenReturn(updated);
 
         mockMvc.perform(put("/tasks/{id}", TASK_ID)
@@ -161,7 +180,7 @@ class TaskControllerTest {
 
     @Test
     void deleteTask_returnsNoContent() throws Exception {
-        doNothing().when(taskService).deleteTask(TASK_ID, USER_ID);
+        doNothing().when(taskService).deleteTask(TASK_ID, USER_ID, DeleteScope.INSTANCE);
 
         mockMvc.perform(delete("/tasks/{id}", TASK_ID)
                         .with(csrf())
@@ -170,8 +189,22 @@ class TaskControllerTest {
     }
 
     @Test
+    void deleteTask_series_passesSeriesScope() throws Exception {
+        doNothing().when(taskService).deleteTask(TASK_ID, USER_ID, DeleteScope.SERIES);
+
+        mockMvc.perform(delete("/tasks/{id}", TASK_ID)
+                        .param("scope", "SERIES")
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isNoContent());
+
+        verify(taskService).deleteTask(TASK_ID, USER_ID, DeleteScope.SERIES);
+    }
+
+    @Test
     void deleteTask_notFound_returns404() throws Exception {
-        doThrow(new IllegalArgumentException("not found")).when(taskService).deleteTask(TASK_ID, USER_ID);
+        doThrow(new IllegalArgumentException("not found"))
+                .when(taskService).deleteTask(TASK_ID, USER_ID, DeleteScope.INSTANCE);
 
         mockMvc.perform(delete("/tasks/{id}", TASK_ID)
                         .with(csrf())
@@ -183,7 +216,7 @@ class TaskControllerTest {
     void completeTask_returnsOk() throws Exception {
         TaskResponse completed = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
                 null, TaskStatus.COMPLETED, Priority.NORMAL, null, null,
-                LocalDateTime.now(), LocalDateTime.now(), null);
+                LocalDateTime.now(), LocalDateTime.now(), null, null);
         when(taskService.completeTask(eq(TASK_ID), eq(USER_ID), anyString())).thenReturn(completed);
 
         mockMvc.perform(patch("/tasks/{id}/complete", TASK_ID)

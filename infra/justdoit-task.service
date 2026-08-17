@@ -1,14 +1,19 @@
 [Unit]
 Description=JustDoIt task-service
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 User=ubuntu
-WorkingDirectory=/opt/justdoit
+WorkingDirectory=/opt/justdoit/current
+StateDirectory=justdoit/exports
+Environment=EXPORT_STORAGE_PATH=/var/lib/justdoit/exports
 EnvironmentFile=/opt/justdoit/.env
-ExecStart=/usr/bin/java -jar /opt/justdoit/task-service.jar
+ExecStart=/usr/bin/java -jar /opt/justdoit/current/task-service.jar
 Restart=always
 RestartSec=10
+SuccessExitStatus=143
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target

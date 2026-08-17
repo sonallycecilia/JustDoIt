@@ -2,8 +2,12 @@ package com.justdoit.task.feature.task;
 
 import com.justdoit.task.shared.TaskStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,21 +19,27 @@ import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByUserId(UUID userId);
+
+    long countByUserId(UUID userId);
+
+    @EntityGraph(attributePaths = {"category", "timer", "note"})
+    Slice<Task> findSliceByUserId(UUID userId, Pageable pageable);
+    
     Optional<Task> findByIdAndUserId(UUID id, UUID userId);
+    
     List<Task> findByCategoryIdAndUserId(UUID categoryId, UUID userId);
 
-    // Caminhos de leitura que serializam TaskResponse: trazem o cycleConfig junto
-    // (left join fetch) para expor cycleType sem N+1 nem lazy loading fora da
-    // transação. left join = tarefas sem ciclo continuam vindo (cycleType null).
-    @Query("select t from Task t left join fetch t.cycleConfig where t.userId = :userId")
-    List<Task> findByUserIdWithCycle(@Param("userId") UUID userId);
+    List<Task> findAllByCycleId(UUID cycleId);
 
-    @Query("select t from Task t left join fetch t.cycleConfig where t.id = :id and t.userId = :userId")
+     @Query("select t from Task t left join fetch t.cycleConfig left join fetch t.timer " +
+          "where t.userId = :userId and (:status is null or t.status = :status)")
+     List<Task> findByUserIdAndStatusWithCycle(@Param("userId") UUID userId,
+                                             @Param("status") TaskStatus status);
+
+    @Query("select t from Task t left join fetch t.cycleConfig left join fetch t.timer "
+         + "where t.id = :id and t.userId = :userId")
     Optional<Task> findByIdAndUserIdWithCycle(@Param("id") UUID id, @Param("userId") UUID userId);
 
-    // Exportação de dados (/me/export): traz categoria, cronômetro e nota junto,
-    // porque o arquivo precisa de todos e um lazy load por tarefa viraria N+1.
-    // As três associações são to-one, então o join fetch múltiplo não duplica linhas.
     @Query("select t from Task t "
          + "left join fetch t.category "
          + "left join fetch t.timer "
@@ -37,25 +47,46 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
          + "where t.userId = :userId order by t.createdAt")
     List<Task> findByUserIdForExport(@Param("userId") UUID userId);
 
-    // Relatório por período (consumido pelo schedule-service via /tasks/report)
-    long countByUserIdAndDueDateBetween(UUID userId, LocalDate from, LocalDate to);
+    @Query("select t from Task t left join fetch t.timer left join fetch t.category "
+         + "where t.userId = :userId and t.dueDate between :from and :to")
+    List<Task> findByUserIdAndDueDateBetweenWithTimer(@Param("userId") UUID userId,
+                                                      @Param("from") LocalDate from,
+                                                      @Param("to") LocalDate to);
+
+    @Query("select t from Task t left join fetch t.timer left join fetch t.category "
+         + "where t.userId = :userId and t.dueDate is null")
+    List<Task> findUndatedByUserIdWithTimer(@Param("userId") UUID userId);
+
+    @Query("select count(t) from Task t where t.userId = :userId "
+         + "and t.dueDate < :date and t.status <> com.justdoit.task.shared.TaskStatus.COMPLETED")
+    long countOverdueOpen(@Param("userId") UUID userId, @Param("date") LocalDate date);
+
     List<Task> findByUserIdAndCompletedAtBetween(UUID userId, LocalDateTime from, LocalDateTime to);
 
-    // Job de detecção de tarefas atrasadas (todos os usuários)
     List<Task> findByStatusInAndDueDateBefore(Collection<TaskStatus> statuses, LocalDate date);
 
-    // Ciclicidade: ocorrências futuras (a partir de hoje) ainda pendentes de uma série.
     long countBySeriesIdAndStatusAndDueDateGreaterThanEqual(UUID seriesId, TaskStatus status, LocalDate date);
+    
     List<Task> findBySeriesIdAndStatusAndDueDateGreaterThanEqual(UUID seriesId, TaskStatus status, LocalDate date);
+    
+    List<Task> findBySeriesIdAndUserId(UUID seriesId, UUID userId);
 
     @Query("select max(t.dueDate) from Task t where t.seriesId = :seriesId")
     LocalDate findMaxDueDateBySeriesId(@Param("seriesId") UUID seriesId);
 
-    // Ciclo CUSTOM: dedup por (série, data, hora). Trata dueTime nula (ocorrências
-    // em granularidade de dia) sem gerar "= null" (que nunca casa em SQL).
     @Query("select count(t) > 0 from Task t where t.seriesId = :seriesId and t.dueDate = :dueDate " +
            "and ((:dueTime is null and t.dueTime is null) or t.dueTime = :dueTime)")
     boolean existsOccurrence(@Param("seriesId") UUID seriesId,
                              @Param("dueDate") LocalDate dueDate,
                              @Param("dueTime") LocalTime dueTime);
+
+    // Tarefas criadas ANTES da correção do Encerramento Semanal ficaram com
+    // cycle_id NULL para sempre — nunca entravam em nenhuma prévia/fechamento
+    // porque tudo ali filtra por cycle_id. Esse UPDATE em lote "adota" essas
+    // tarefas legadas para o ciclo atualmente aberto do usuário, uma única
+    // vez (idempotente: depois da primeira execução não sobra nenhuma com
+    // cycle_id nulo, então as próximas chamadas não afetam nenhuma linha).
+    @Modifying(clearAutomatically = true)
+    @Query("update Task t set t.cycleId = :cycleId where t.userId = :userId and t.cycleId is null")
+    int adoptOrphanTasks(@Param("userId") UUID userId, @Param("cycleId") UUID cycleId);
 }

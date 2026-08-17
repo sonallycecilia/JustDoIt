@@ -2,6 +2,7 @@ package com.justdoit.task.feature.category;
 
 import com.justdoit.task.feature.task.Task;
 import com.justdoit.task.feature.task.TaskRepository;
+import com.justdoit.task.feature.note.NoteRepository;
 import com.justdoit.task.shared.CategoryRequest;
 import com.justdoit.task.shared.CategoryResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ class CategoryServiceTest {
 
     @Mock private CategoryRepository categoryRepository;
     @Mock private TaskRepository taskRepository;
+    @Mock private NoteRepository noteRepository;
     @InjectMocks private CategoryService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");

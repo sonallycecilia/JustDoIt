@@ -62,22 +62,67 @@ public class ScheduleController {
         }
     }
 
+    /**
+     * Abre o plano da semana. Idempotente: se a semana já tem plano, devolve o
+     * existente com 200 em vez de criar um segundo (201 só na criação de fato).
+     */
     @PostMapping("/weekly-plans")
     public ResponseEntity<WeeklyPlanResponse> createWeeklyPlan(@RequestBody @Valid WeeklyPlanRequest request,
                                                                @AuthenticationPrincipal UUID userId) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(scheduleService.createWeeklyPlan(request, userId));
+        boolean jaExistia = scheduleService.findWeeklyPlan(request.weekStartDate(), userId).isPresent();
+        WeeklyPlanResponse plano = scheduleService.createWeeklyPlan(request, userId);
+        return ResponseEntity.status(jaExistia ? HttpStatus.OK : HttpStatus.CREATED).body(plano);
+    }
+
+    /** Plano de uma semana pela data de início. 404 quando a semana ainda não foi aberta. */
+    @GetMapping("/weekly-plans")
+    public ResponseEntity<WeeklyPlanResponse> getWeeklyPlan(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart,
+            @AuthenticationPrincipal UUID userId) {
+        return scheduleService.findWeeklyPlan(weekStart, userId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/weekly-plans/history")
+    public ResponseEntity<List<WeeklyPlanResponse>> getWeeklyPlanHistory(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @AuthenticationPrincipal UUID userId) {
+        try {
+            return ResponseEntity.ok(scheduleService.findWeeklyPlans(from, to, userId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/analytics/overall")
+    public ResponseEntity<AnalyticsOverallResponse> getOverallAnalytics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @AuthenticationPrincipal UUID userId,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader) {
+        try {
+            return ResponseEntity.ok(scheduleService.getOverallAnalytics(from, to, userId, authHeader));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
     }
 
     @PatchMapping("/weekly-plans/{id}/close")
     public ResponseEntity<WeeklyPlanResponse> closeWeeklyPlan(@PathVariable UUID id,
-                                                              @AuthenticationPrincipal UUID userId) {
+                                                              @AuthenticationPrincipal UUID userId,
+                                                              @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader) {
         try {
-            return ResponseEntity.ok(scheduleService.closeWeeklyPlan(id, userId));
+            return ResponseEntity.ok(scheduleService.closeWeeklyPlan(id, userId, authHeader));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
     }
 
+    /** Calcula (ou recalcula) o resumo. Numa semana fechada devolve o retrato congelado. */
     @PostMapping("/weekly-plans/{id}/summary")
     public ResponseEntity<WeeklySummaryResponse> generateWeeklySummary(@PathVariable UUID id,
                                                                        @AuthenticationPrincipal UUID userId,
@@ -89,12 +134,18 @@ public class ScheduleController {
         }
     }
 
+    /**
+     * Lê o resumo salvo, sem recalcular. Antes este GET chamava o gerador, ou
+     * seja, escrevia no banco (e ainda batia no task-service) a cada leitura.
+     * 404 quando a semana ainda não tem resumo — quem quer gerar usa o POST.
+     */
     @GetMapping("/weekly-plans/{id}/summary")
     public ResponseEntity<WeeklySummaryResponse> getWeeklySummary(@PathVariable UUID id,
-                                                                  @AuthenticationPrincipal UUID userId,
-                                                                  @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader) {
+                                                                  @AuthenticationPrincipal UUID userId) {
         try {
-            return ResponseEntity.ok(scheduleService.generateWeeklySummary(id, userId, authHeader));
+            return scheduleService.findWeeklySummary(id, userId)
+                    .map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }

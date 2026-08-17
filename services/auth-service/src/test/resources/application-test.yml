@@ -16,6 +16,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
 jwt:
   secret: test-secret-key-please-change-256-bits-minimum-0123456789abcdef
 auth:

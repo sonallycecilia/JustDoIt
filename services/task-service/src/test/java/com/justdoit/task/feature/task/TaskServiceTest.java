@@ -2,6 +2,11 @@ package com.justdoit.task.feature.task;
 
 import com.justdoit.task.feature.category.Category;
 import com.justdoit.task.feature.category.CategoryRepository;
+import com.justdoit.task.feature.cycle.CycleConfig;
+import com.justdoit.task.feature.cycle.CycleConfigRepository;
+import com.justdoit.task.feature.weeklyclosure.domain.CycleMutabilityGuard;
+import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycle;
+import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycleProvisioningService;
 import com.justdoit.task.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,12 +32,19 @@ class TaskServiceTest {
     @Mock private TaskRepository taskRepository;
     @Mock private SubTaskRepository subTaskRepository;
     @Mock private CategoryRepository categoryRepository;
+    @Mock private CycleConfigRepository cycleConfigRepository;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
+    
+    // Novas dependências adicionadas ao Mockito
+    @Mock private CycleMutabilityGuard cycleMutabilityGuard;
+    @Mock private WeeklyCycleProvisioningService cycleProvisioningService;
+    
     @InjectMocks private TaskService service;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID TASK_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final UUID CAT_ID  = UUID.fromString("00000000-0000-0000-0000-000000000003");
+    private static final UUID SERIES_ID = UUID.fromString("00000000-0000-0000-0000-000000000004");
 
     private Task task;
     private Category category;
@@ -42,9 +56,21 @@ class TaskServiceTest {
                 .status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
     }
 
+    private void stubCurrentCycle() {
+        WeeklyCycle currentCycle = mock(WeeklyCycle.class);
+        when(currentCycle.getId()).thenReturn(UUID.randomUUID());
+        when(cycleProvisioningService.getOrCreateCurrentCycle(USER_ID)).thenReturn(currentCycle);
+    }
+
     @Test
     void createTask_withoutCategory_savesTask() {
         TaskRequest request = new TaskRequest("Test task", null, null, null, null, null, null);
+        
+        // Mock do ciclo semanal para não dar erro ao buscar o currentCycleId
+        WeeklyCycle mockCycle = mock(WeeklyCycle.class);
+        when(mockCycle.getId()).thenReturn(UUID.randomUUID());
+        when(cycleProvisioningService.getOrCreateCurrentCycle(USER_ID)).thenReturn(mockCycle);
+        
         when(taskRepository.save(any())).thenReturn(task);
 
         TaskResponse result = service.createTask(request, USER_ID);
@@ -60,6 +86,12 @@ class TaskServiceTest {
         TaskRequest request = new TaskRequest("Test task", null, null, CAT_ID, Priority.URGENT_IMPORTANT, null, null);
         Task taskWithCat = Task.builder().id(TASK_ID).userId(USER_ID).title("Test task")
                 .category(category).status(TaskStatus.PENDING).priority(Priority.URGENT_IMPORTANT).build();
+        
+        // Mock do ciclo semanal
+        WeeklyCycle mockCycle = mock(WeeklyCycle.class);
+        when(mockCycle.getId()).thenReturn(UUID.randomUUID());
+        when(cycleProvisioningService.getOrCreateCurrentCycle(USER_ID)).thenReturn(mockCycle);
+
         when(categoryRepository.findByIdAndUserId(CAT_ID, USER_ID)).thenReturn(Optional.of(category));
         when(taskRepository.save(any())).thenReturn(taskWithCat);
 
@@ -67,6 +99,37 @@ class TaskServiceTest {
 
         assertEquals(CAT_ID, result.categoryId());
         verify(categoryRepository).findByIdAndUserId(CAT_ID, USER_ID);
+    }
+
+    @Test
+    void createTask_withScheduledTime_persistsReminder() {
+        LocalDate dueDate = LocalDate.of(2026, 8, 11);
+        LocalTime dueTime = LocalTime.of(10, 30);
+        TaskRequest request = new TaskRequest(
+                "Reunião", null, null, null, Priority.NORMAL,
+                dueDate, dueTime, 15);
+        stubCurrentCycle();
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = service.createTask(request, USER_ID);
+
+        ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(captor.capture());
+        assertEquals(15, captor.getValue().getReminderMinutesBefore());
+        assertEquals(15, response.reminderMinutesBefore());
+    }
+
+    @Test
+    void createTask_withoutScheduledTime_discardsReminder() {
+        TaskRequest request = new TaskRequest(
+                "Sem horário", null, null, null, Priority.NORMAL,
+                LocalDate.of(2026, 8, 11), null, 60);
+        stubCurrentCycle();
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = service.createTask(request, USER_ID);
+
+        assertNull(response.reminderMinutesBefore());
     }
 
     @Test
@@ -95,13 +158,17 @@ class TaskServiceTest {
     }
 
     @Test
-    void getAllTasksByUser_returnsList() {
-        when(taskRepository.findByUserIdWithCycle(USER_ID)).thenReturn(List.of(task));
+    void getTasksByUser_returnsList() {
+        task.setSeriesId(SERIES_ID);
+        
+        when(taskRepository.findByUserIdAndStatusWithCycle(USER_ID, TaskStatus.PENDING))
+                .thenReturn(List.of(task));
 
-        List<TaskResponse> result = service.getAllTasksByUser(USER_ID);
+        List<TaskResponse> result = service.getTasksByUser(USER_ID, TaskStatus.PENDING);
 
         assertEquals(1, result.size());
         assertEquals(TASK_ID, result.get(0).id());
+        assertEquals(SERIES_ID, result.get(0).seriesId());
     }
 
     @Test
@@ -120,8 +187,6 @@ class TaskServiceTest {
 
     @Test
     void updateTask_nullCategory_clearsCategory() {
-        // Tarefa que já tem categoria; PUT com categoryId nulo deve removê-la
-        // (mover para "Genérico" = sem categoria).
         Task withCat = Task.builder().id(TASK_ID).userId(USER_ID).title("t")
                 .category(category).status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
         TaskRequest request = new TaskRequest("t", "d", null, null, null, null, null);
@@ -147,7 +212,7 @@ class TaskServiceTest {
     void deleteTask_callsDelete() {
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
 
-        service.deleteTask(TASK_ID, USER_ID);
+        service.deleteTask(TASK_ID, USER_ID, DeleteScope.INSTANCE);
 
         verify(taskRepository).delete(task);
     }
@@ -156,7 +221,49 @@ class TaskServiceTest {
     void deleteTask_notFound_throwsException() {
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> service.deleteTask(TASK_ID, USER_ID));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.deleteTask(TASK_ID, USER_ID, DeleteScope.INSTANCE));
+    }
+
+    @Test
+    void deleteTask_series_deletesEveryOccurrenceAndRoot() {
+        Task occurrence = Task.builder().id(TASK_ID).userId(USER_ID).seriesId(SERIES_ID)
+                .title("Occurrence").status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        Task root = Task.builder().id(SERIES_ID).userId(USER_ID).title("Series root")
+                .status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        Task another = Task.builder().id(UUID.randomUUID()).userId(USER_ID).seriesId(SERIES_ID)
+                .title("Occurrence 2").status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(occurrence));
+        when(taskRepository.findByIdAndUserId(SERIES_ID, USER_ID)).thenReturn(Optional.of(root));
+        when(taskRepository.findBySeriesIdAndUserId(SERIES_ID, USER_ID))
+                .thenReturn(List.of(occurrence, another));
+
+        service.deleteTask(TASK_ID, USER_ID, DeleteScope.SERIES);
+
+        verify(taskRepository).deleteAll(List.of(occurrence, another));
+        verify(taskRepository).delete(root);
+    }
+
+    @Test
+    void deleteTask_rootInstance_promotesNextOccurrenceAndPreservesSeries() {
+        CycleConfig config = CycleConfig.builder().task(task).cycleType(CycleType.WEEKLY).build();
+        task.setCycleConfig(config);
+        Task next = Task.builder().id(SERIES_ID).userId(USER_ID).seriesId(TASK_ID)
+                .title("Next").dueDate(java.time.LocalDate.now().plusWeeks(1))
+                .status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        Task later = Task.builder().id(UUID.randomUUID()).userId(USER_ID).seriesId(TASK_ID)
+                .title("Later").dueDate(java.time.LocalDate.now().plusWeeks(2))
+                .status(TaskStatus.PENDING).priority(Priority.NORMAL).build();
+        when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
+        when(taskRepository.findBySeriesIdAndUserId(TASK_ID, USER_ID)).thenReturn(List.of(later, next));
+
+        service.deleteTask(TASK_ID, USER_ID, DeleteScope.INSTANCE);
+
+        assertNull(next.getSeriesId());
+        assertEquals(next, config.getTask());
+        assertEquals(SERIES_ID, later.getSeriesId());
+        verify(cycleConfigRepository).save(config);
+        verify(taskRepository).delete(task);
     }
 
     @Test
@@ -169,8 +276,6 @@ class TaskServiceTest {
         TaskResponse result = service.completeTask(TASK_ID, USER_ID, "Bearer token");
 
         assertEquals(TaskStatus.COMPLETED, result.status());
-        // registra QUANDO concluiu (base do /tasks/report) e publica o evento que
-        // vira notificação após o commit
         assertNotNull(task.getCompletedAt());
         verify(eventPublisher).publishEvent(any(TaskCompletedEvent.class));
     }

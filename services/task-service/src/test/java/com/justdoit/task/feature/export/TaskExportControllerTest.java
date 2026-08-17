@@ -1,120 +1,107 @@
 package com.justdoit.task.feature.export;
 
 import com.justdoit.common.security.JwtValidator;
+import com.justdoit.task.config.WebSecurityConfig;
 import com.justdoit.task.shared.ExportFormat;
-import com.justdoit.task.shared.TaskExportResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.http.HttpHeaders;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * AC2 (escolha de formato) na borda HTTP: o mesmo endpoint devolve CSV ou JSON
- * conforme ?format=, sempre como anexo com nome carimbado pela data.
- */
 @WebMvcTest(TaskExportController.class)
+@Import(WebSecurityConfig.class)
 class TaskExportControllerTest {
 
     @Autowired private MockMvc mockMvc;
-    @MockitoBean private TaskExportService taskExportService;
+    @MockitoBean private ExportJobService exportJobService;
     @MockitoBean private JwtValidator jwtValidator;
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID JOB_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
 
-    private TaskExportResponse exportVazio() {
-        return new TaskExportResponse(LocalDateTime.of(2026, 7, 27, 12, 0), USER_ID, 0, List.of());
+    @Test
+    @DisplayName("POST aceita imediatamente com 202, jobId e Location")
+    void requestExport_returns202() throws Exception {
+        when(exportJobService.request(USER_ID, ExportFormat.CSV)).thenReturn(
+                new ExportJobAcceptedResponse(JOB_ID, ExportJobStatus.PENDING,
+                        "/me/exports/" + JOB_ID, LocalDateTime.now()));
+
+        mockMvc.perform(post("/me/exports").param("format", "csv")
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isAccepted())
+                .andExpect(header().string("Location", "/me/exports/" + JOB_ID))
+                .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
+                .andExpect(jsonPath("$.status").value("PENDING"));
     }
 
     @Test
-    @DisplayName("format=json devolve o envelope JSON como anexo .json")
-    void export_json() throws Exception {
-        when(taskExportService.export(USER_ID)).thenReturn(exportVazio());
-        when(taskExportService.fileName(eq(ExportFormat.JSON), any())).thenReturn("export_tarefas_2026-07-27.json");
-
-        mockMvc.perform(get("/me/export").param("format", "json").with(authenticatedUser(USER_ID)))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith("application/json"))
-                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"export_tarefas_2026-07-27.json\""))
-                .andExpect(jsonPath("$.userId").value(USER_ID.toString()))
-                .andExpect(jsonPath("$.taskCount").value(0))
-                .andExpect(jsonPath("$.tasks").isArray());
-
-        verify(taskExportService, never()).toCsv(any());
-    }
-
-    @Test
-    @DisplayName("format=csv devolve text/csv como anexo .csv")
-    void export_csv() throws Exception {
-        when(taskExportService.export(USER_ID)).thenReturn(exportVazio());
-        when(taskExportService.toCsv(any())).thenReturn("id,title\r\n");
-        when(taskExportService.fileName(eq(ExportFormat.CSV), any())).thenReturn("export_tarefas_2026-07-27.csv");
-
-        mockMvc.perform(get("/me/export").param("format", "csv").with(authenticatedUser(USER_ID)))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith("text/csv"))
-                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"export_tarefas_2026-07-27.csv\""))
-                .andExpect(content().string("id,title\r\n"));
-    }
-
-    @Test
-    @DisplayName("sem format o padrão é JSON")
-    void export_semFormato_ehJson() throws Exception {
-        when(taskExportService.export(USER_ID)).thenReturn(exportVazio());
-        when(taskExportService.fileName(eq(ExportFormat.JSON), any())).thenReturn("export_tarefas_2026-07-27.json");
+    @DisplayName("GET legado também aceita como job e não gera arquivo na request")
+    void legacyGet_returns202() throws Exception {
+        when(exportJobService.request(USER_ID, ExportFormat.JSON)).thenReturn(
+                new ExportJobAcceptedResponse(JOB_ID, ExportJobStatus.PENDING,
+                        "/me/exports/" + JOB_ID, LocalDateTime.now()));
 
         mockMvc.perform(get("/me/export").with(authenticatedUser(USER_ID)))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith("application/json"));
+                .andExpect(status().isAccepted());
     }
 
     @Test
-    @DisplayName("formato desconhecido é 400 e nem chega a consultar o banco")
-    void export_formatoInvalido_ehBadRequest() throws Exception {
-        mockMvc.perform(get("/me/export").param("format", "xlsx").with(authenticatedUser(USER_ID)))
+    @DisplayName("formato desconhecido é 400 sem criar job")
+    void invalidFormat_returns400() throws Exception {
+        mockMvc.perform(post("/me/exports").param("format", "xlsx")
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isBadRequest());
 
-        verify(taskExportService, never()).export(any());
+        verify(exportJobService, never()).request(any(), any());
     }
 
     @Test
-    @DisplayName("exporta o dono do token, ignorando qualquer userId enviado pelo cliente")
-    void export_usaSempreOUsuarioDoToken() throws Exception {
-        UUID outro = UUID.fromString("99999999-9999-9999-9999-999999999999");
-        when(taskExportService.export(USER_ID)).thenReturn(exportVazio());
-        when(taskExportService.fileName(any(), any())).thenReturn("export_tarefas_2026-07-27.json");
+    @DisplayName("status usa sempre o usuário autenticado")
+    void status_isOwnedByPrincipal() throws Exception {
+        when(exportJobService.status(JOB_ID, USER_ID)).thenReturn(new ExportJobResponse(
+                JOB_ID, ExportFormat.JSON, ExportJobStatus.RUNNING,
+                LocalDateTime.now(), LocalDateTime.now(), null, null,
+                null, null, null, null, null));
 
-        mockMvc.perform(get("/me/export").param("userId", outro.toString()).with(authenticatedUser(USER_ID)))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/me/exports/{id}", JOB_ID).with(authenticatedUser(USER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RUNNING"));
 
-        verify(taskExportService).export(USER_ID);
-        verify(taskExportService, never()).export(outro);
+        verify(exportJobService).status(JOB_ID, USER_ID);
     }
 
     @Test
-    @DisplayName("nome do arquivo é gerado com a data de hoje")
-    void export_nomeUsaDataDeHoje() throws Exception {
-        when(taskExportService.export(USER_ID)).thenReturn(exportVazio());
-        when(taskExportService.fileName(any(), any())).thenReturn("export_tarefas.json");
+    @DisplayName("download assinado é público e preserva Content-Disposition")
+    void signedDownload_returnsFile() throws Exception {
+        when(exportJobService.download(JOB_ID, 123L, "signed")).thenReturn(
+                new ExportDownload(new ByteArrayResource("id,title\r\n".getBytes()),
+                        "export_tarefas.csv", "text/csv;charset=UTF-8"));
 
-        mockMvc.perform(get("/me/export").with(authenticatedUser(USER_ID))).andExpect(status().isOk());
-
-        verify(taskExportService).fileName(ExportFormat.JSON, LocalDate.now());
+        mockMvc.perform(get("/me/exports/{id}/download", JOB_ID)
+                        .param("expires", "123").param("token", "signed"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        containsString("filename*=UTF-8''export_tarefas.csv")))
+                .andExpect(content().string("id,title\r\n"));
     }
 }
