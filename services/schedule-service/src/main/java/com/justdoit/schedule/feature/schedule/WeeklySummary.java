@@ -56,4 +56,9 @@ public class WeeklySummary {
     @Builder.Default
     @Column(name = "data_status")
     private SummaryDataStatus dataStatus = SummaryDataStatus.COMPLETE;
+
+    /** Relatório e blocos congelados usados por todos os cards da Análise. */
+    @Convert(converter = WeeklyAnalyticsPayloadConverter.class)
+    @Column(name = "analytics_payload", columnDefinition = "LONGTEXT")
+    private WeeklyAnalyticsPayload analyticsPayload;
 }

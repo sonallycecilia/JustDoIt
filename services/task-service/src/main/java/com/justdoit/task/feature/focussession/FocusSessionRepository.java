@@ -17,4 +17,8 @@ public interface FocusSessionRepository extends JpaRepository<FocusSession, UUID
     List<FocusSession> findByTask_UserIdAndStartedAtBetween(UUID userId,
                                                             java.time.LocalDateTime from,
                                                             java.time.LocalDateTime to);
+
+    List<FocusSession> findByTaskIdAndStartedAtBetween(UUID taskId,
+                                                       java.time.LocalDateTime from,
+                                                       java.time.LocalDateTime to);
 }

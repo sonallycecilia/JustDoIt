@@ -111,6 +111,20 @@ public class ScheduleController {
         }
     }
 
+    @GetMapping("/analytics/weeks/{weekStart}")
+    public ResponseEntity<WeeklyAnalyticsResponse> getWeeklyAnalytics(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart,
+            @AuthenticationPrincipal UUID userId,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader) {
+        try {
+            return ResponseEntity.ok(scheduleService.getWeeklyAnalytics(weekStart, userId, authHeader));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+    }
+
     @PatchMapping("/weekly-plans/{id}/close")
     public ResponseEntity<WeeklyPlanResponse> closeWeeklyPlan(@PathVariable UUID id,
                                                               @AuthenticationPrincipal UUID userId,
@@ -119,6 +133,8 @@ public class ScheduleController {
             return ResponseEntity.ok(scheduleService.closeWeeklyPlan(id, userId, authHeader));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
     }
 

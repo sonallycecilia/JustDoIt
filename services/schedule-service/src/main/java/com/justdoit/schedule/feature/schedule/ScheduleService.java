@@ -126,6 +126,45 @@ public class ScheduleService {
     }
 
     /**
+     * Fonte única da tela semanal. Uma semana fechada nunca volta a consultar
+     * entidades mutáveis; semanas abertas continuam refletindo o estado atual.
+     * Planos históricos anteriores à migração são reconstruídos e marcados como
+     * PARTIAL para não se passarem por um retrato fiel.
+     */
+    public WeeklyAnalyticsResponse getWeeklyAnalytics(LocalDate weekStart, UUID userId,
+                                                       String authorizationHeader) {
+        if (weekStart == null) throw new IllegalArgumentException("Semana inválida");
+        LocalDate weekEnd = weekStart.plusDays(6);
+        Optional<WeeklyPlan> plan = weeklyPlanRepository.findByUserIdAndWeekStartDate(userId, weekStart);
+
+        if (plan.isPresent() && plan.get().getStatus() == ScheduleStatus.CLOSED) {
+            Optional<WeeklySummary> summary = weeklySummaryRepository.findByWeeklyPlanId(plan.get().getId());
+            if (summary.isPresent() && summary.get().getAnalyticsPayload() != null) {
+                WeeklyAnalyticsPayload payload = summary.get().getAnalyticsPayload();
+                SummaryDataStatus snapshotStatus = summary.get().getDataStatus() != null
+                        ? summary.get().getDataStatus()
+                        : SummaryDataStatus.PARTIAL;
+                return new WeeklyAnalyticsResponse(weekStart, weekEnd, ScheduleStatus.CLOSED,
+                        "SNAPSHOT", snapshotStatus, payload.report(), payload.timeBlocks());
+            }
+            return liveWeeklyAnalytics(weekStart, weekEnd, userId, authorizationHeader,
+                    ScheduleStatus.CLOSED, "RECONSTRUCTED", SummaryDataStatus.PARTIAL);
+        }
+
+        return liveWeeklyAnalytics(weekStart, weekEnd, userId, authorizationHeader,
+                ScheduleStatus.OPEN, "LIVE", SummaryDataStatus.COMPLETE);
+    }
+
+    private WeeklyAnalyticsResponse liveWeeklyAnalytics(LocalDate from, LocalDate to, UUID userId,
+                                                        String authorizationHeader, ScheduleStatus status,
+                                                        String source, SummaryDataStatus dataStatus) {
+        TaskReport report = taskReportClient.getReport(authorizationHeader, from, to)
+                .orElseThrow(() -> new IllegalStateException("Task report unavailable"));
+        return new WeeklyAnalyticsResponse(from, to, status, source, dataStatus, report,
+                getTimeBlocksBetween(from, to, userId));
+    }
+
+    /**
      * Fecha a semana. Gera o resumo uma última vez ANTES de marcar CLOSED: é esse
      * retrato que fica congelado. Sem isso, fechar uma semana sem nunca ter
      * aberto a Análise deixaria um plano fechado com resumo zerado.
@@ -135,7 +174,13 @@ public class ScheduleService {
         WeeklyPlan plan = weeklyPlanRepository.findByIdAndUserId(planId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Weekly plan not found"));
         if (plan.getStatus() != ScheduleStatus.CLOSED) {
-            generateWeeklySummary(planId, userId, authorizationHeader);
+            WeeklySummaryResponse snapshot = generateWeeklySummary(planId, userId, authorizationHeader);
+            if (snapshot.dataStatus() != SummaryDataStatus.COMPLETE) {
+                // Um plano CLOSED sem o payload integral voltaria a depender de
+                // dados mutáveis. Mantém OPEN para que a orquestração possa ser
+                // repetida quando o task-service voltar.
+                throw new IllegalStateException("Weekly analytics snapshot unavailable");
+            }
             plan.setStatus(ScheduleStatus.CLOSED);
             plan = weeklyPlanRepository.save(plan);
         }
@@ -189,11 +234,17 @@ public class ScheduleService {
             summary.setTotalEstimatedMinutes((int) r.totalEstimatedMinutes());
             summary.setDeviationSeconds(r.totalActualSeconds() - totalScheduled * 60L);
             summary.setDataStatus(SummaryDataStatus.COMPLETE);
+            summary.setAnalyticsPayload(new WeeklyAnalyticsPayload(
+                    WeeklyAnalyticsPayload.CURRENT_VERSION,
+                    r,
+                    blocks.stream().map(this::toTimeBlockResponse).toList()
+            ));
         } else {
             // Não substitui tarefas por blocos: são entidades diferentes. O zero
             // vem acompanhado de PARTIAL para nunca parecer um retrato completo.
             summary.setTotalTasks(0);
             summary.setDataStatus(SummaryDataStatus.PARTIAL);
+            summary.setAnalyticsPayload(null);
         }
 
         return toWeeklySummaryResponse(weeklySummaryRepository.save(summary));

@@ -16,6 +16,10 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, UUID> {
                                                          LocalDateTime from,
                                                          LocalDateTime to);
 
+    List<TimeEntry> findByTaskIdAndStartedAtBetween(UUID taskId,
+                                                    LocalDateTime from,
+                                                    LocalDateTime to);
+
     // Zerar o cronômetro da tarefa apaga também o histórico datado, senão o
     // acumulado (0) e o relatório passariam a contar coisas diferentes.
     void deleteByTaskId(UUID taskId);

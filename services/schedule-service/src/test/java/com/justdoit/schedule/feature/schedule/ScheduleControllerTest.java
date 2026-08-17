@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.justdoit.common.security.JwtValidator;
 import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
 import com.justdoit.schedule.config.WebSecurityConfig;
+import com.justdoit.schedule.integration.TaskReportClient;
 import com.justdoit.schedule.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -225,5 +226,35 @@ class ScheduleControllerTest {
         mockMvc.perform(get("/weekly-plans/{id}/summary", PLAN_ID)
                         .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void closeWeeklyPlan_semSnapshotCompleto_returns503() throws Exception {
+        when(scheduleService.closeWeeklyPlan(eq(PLAN_ID), eq(USER_ID), anyString()))
+                .thenThrow(new IllegalStateException("snapshot unavailable"));
+
+        mockMvc.perform(patch("/weekly-plans/{id}/close", PLAN_ID)
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
+                .andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
+    void getWeeklyAnalytics_returnsCanonicalPayload() throws Exception {
+        TaskReportClient.TaskReport report = new TaskReportClient.TaskReport(7, 5, 3_600, 600);
+        WeeklyAnalyticsResponse response = new WeeklyAnalyticsResponse(
+                TODAY, TODAY.plusDays(6), ScheduleStatus.CLOSED, "SNAPSHOT",
+                SummaryDataStatus.COMPLETE, report, List.of());
+        when(scheduleService.getWeeklyAnalytics(TODAY, USER_ID, "Bearer mock-token"))
+                .thenReturn(response);
+
+        mockMvc.perform(get("/analytics/weeks/{weekStart}", TODAY)
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("SNAPSHOT"))
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.report.totalTasks").value(7));
     }
 }
