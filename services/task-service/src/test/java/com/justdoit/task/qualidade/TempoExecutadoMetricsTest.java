@@ -212,10 +212,10 @@ class TempoExecutadoMetricsTest {
                         .header("Authorization", "Bearer " + tokenPara(USER_ID)))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
 
-        LocalDate hoje = LocalDate.now();
-        // Tolerância no valor (o relógio manda), rigor na existência e no dia.
-        assertThat(tempoExecutadoPorDia(hoje, hoje).getOrDefault(hoje, 0L))
-                .as("O tempo cronometrado tem de aparecer no relatório do dia em que rodou")
+        // Inclui ontem porque um intervalo iniciado imediatamente antes da
+        // meia-noite pertence ao dia de início, mesmo terminando hoje.
+        assertThat(tempoExecutadoRecente())
+                .as("O tempo cronometrado tem de aparecer no relatório do período recente")
                 .isGreaterThanOrEqualTo(1L);
     }
 
@@ -228,8 +228,7 @@ class TempoExecutadoMetricsTest {
                         .content("{\"seconds\":600}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
 
-        LocalDate hoje = LocalDate.now();
-        assertThat(tempoExecutadoPorDia(hoje, hoje).getOrDefault(hoje, 0L)).isEqualTo(600L);
+        assertThat(tempoExecutadoRecente()).isEqualTo(600L);
     }
 
     @Test
@@ -242,8 +241,7 @@ class TempoExecutadoMetricsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"seconds\":600}"));
 
-        LocalDate hoje = LocalDate.now();
-        assertThat(tempoExecutadoPorDia(hoje, hoje).getOrDefault(hoje, 0L)).isEqualTo(600L);
+        assertThat(tempoExecutadoRecente()).isEqualTo(600L);
 
         mockMvc.perform(put("/tasks/{id}/timer", tarefa.getId())
                         .header("Authorization", "Bearer " + tokenPara(USER_ID))
@@ -251,7 +249,7 @@ class TempoExecutadoMetricsTest {
                         .content("{\"actualSeconds\":0}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
 
-        assertThat(tempoExecutadoPorDia(hoje, hoje).getOrDefault(hoje, 0L)).isZero();
+        assertThat(tempoExecutadoRecente()).isZero();
     }
 
     // ─────────────────────────────────────────────
@@ -271,6 +269,13 @@ class TempoExecutadoMetricsTest {
             porDia.put(LocalDate.parse(dia.get("date").asText()), dia.get("actualSeconds").asLong());
         }
         return porDia;
+    }
+
+    private long tempoExecutadoRecente() throws Exception {
+        LocalDate hoje = LocalDate.now();
+        return tempoExecutadoPorDia(hoje.minusDays(1), hoje).values().stream()
+                .mapToLong(Long::longValue)
+                .sum();
     }
 
     private void foco(LocalDateTime inicio, LocalDateTime fim) {
