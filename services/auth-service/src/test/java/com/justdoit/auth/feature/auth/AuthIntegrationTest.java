@@ -108,6 +108,44 @@ class AuthIntegrationTest {
     }
 
     @Test
+    @DisplayName("login: conta B não deve revogar o refresh token da conta A")
+    void login_deOutraConta_devePreservarSessaoExistente() throws Exception {
+        RegisterRequest accountA = new RegisterRequest(
+                "Usuário A", "account-a@test.com", PASSWORD, LocalDate.of(1990, 1, 10));
+        RegisterRequest accountB = new RegisterRequest(
+                "Usuário B", "account-b@test.com", PASSWORD, LocalDate.of(1992, 2, 20));
+
+        MvcResult accountARegister = mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(accountA)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String accountARefreshToken = objectMapper
+                .readTree(accountARegister.getResponse().getContentAsString())
+                .get("refreshToken").asText();
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(accountB)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new LoginRequest(accountB.email(), PASSWORD, true))))
+                .andExpect(status().isOk());
+
+        // A sessão de A continua renovável depois do login independente de B.
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new RefreshRequest(accountARefreshToken))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+    }
+
+    @Test
     @DisplayName("login: deve retornar 401 quando email não existe")
     void login_deveRetornar401_quandoEmailNaoExiste() throws Exception {
         mockMvc.perform(post("/auth/login")
