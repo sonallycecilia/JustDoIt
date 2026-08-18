@@ -37,7 +37,7 @@ class AuthIntegrationTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     private static final String EMAIL = "integration@test.com";
-    private static final String PASSWORD = "senha123";
+    private static final String PASSWORD = "Senha123";
     private static final RegisterRequest VALID_REGISTER = new RegisterRequest(
             "Integration User", EMAIL, PASSWORD, LocalDate.of(1990, 6, 15)
     );
@@ -86,6 +86,20 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.password").isNotEmpty())
                 .andExpect(jsonPath("$.birthDate").isNotEmpty());
     }
+
+    @Test
+    @DisplayName("register: deve retornar 400 quando a senha não atende à política de senha forte")
+    void register_deveRetornar400_quandoSenhaNaoAtendeAPolitica() throws Exception {
+        RegisterRequest senhaFraca = new RegisterRequest(
+                "Usuário Senha Fraca", "senha-fraca@test.com", "abcdefgh", LocalDate.of(1990, 1, 1)
+        );
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(senhaFraca)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.password").isNotEmpty());
+        }
 
     // ─────────────────────────────────────────────
     // POST /auth/login
