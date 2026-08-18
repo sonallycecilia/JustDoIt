@@ -23,13 +23,22 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
+    private final TurnstileService turnstileService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody @Valid RegisterRequest request) {
+    public ResponseEntity<?> register(
+            @RequestBody @Valid RegisterRequest request,
+            @RequestHeader(value = "X-Turnstile-Token", required = false) String turnstileToken) {
         try {
+            if (!turnstileService.isValid(turnstileToken)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Falha na verificação de segurança. Acesso bloqueado."));
+            }
             return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ErrorResponse(e.getMessage()));
         }
     }
 
@@ -39,11 +48,19 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request) {
+    public ResponseEntity<?> login(
+            @RequestBody @Valid LoginRequest request,
+            @RequestHeader(value = "X-Turnstile-Token", required = false) String turnstileToken) {
         try {
+            if (!turnstileService.isValid(turnstileToken)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Falha na verificação de segurança. Acesso bloqueado."));
+            }
             return ResponseEntity.ok(authService.login(request));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ErrorResponse(e.getMessage()));
         }
     }
 
@@ -82,7 +99,6 @@ public class AuthController {
 
     @DeleteMapping("/me")
     public ResponseEntity<?> deleteMe(@AuthenticationPrincipal UUID userId,
-                                      // repassado ao task-service para a purga dos dados do usuário
                                       @RequestHeader("Authorization") String authHeader) {
         try {
             authService.deleteAccount(userId, authHeader);
@@ -90,8 +106,6 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
-            // Falha ao remover os dados de tarefas (task-service indisponível, etc.):
-            // a conta não foi excluída, então o usuário pode tentar de novo.
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(new ErrorResponse("Não foi possível remover seus dados de tarefas. Tente novamente."));
         }

@@ -69,3 +69,11 @@ management:
     health:
       probes:
         enabled: true
+
+#token para verificação do captcha da Cloudflare Turnstile (feat: verificação antibot)
+
+cloudflare:
+  turnstile:
+    # A URL oficial da API da Cloudflare para validar o token
+    verify-url: https://challenges.cloudflare.com/turnstile/v0/siteverify
+    secret-key: ${TURNSTILE_SECRET_KEY:0x4AAAAAAEULltpK1lxOnrhgkQMWoUio0IM}
