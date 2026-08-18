@@ -146,7 +146,7 @@ class ValidacaoEntradaMetricsTest {
         Map<String, Object> corpo = new LinkedHashMap<>();
         corpo.put("name", nome);
         corpo.put("email", "metrica" + sequencia.incrementAndGet() + "@test.com");
-        corpo.put("password", "senha123456");
+        corpo.put("password", "Senha123456");
         corpo.put("birthDate", "1990-01-01");
 
         return mockMvc.perform(post("/auth/register")
@@ -167,7 +167,7 @@ class ValidacaoEntradaMetricsTest {
         Map<String, Object> corpo = new LinkedHashMap<>();
         corpo.put("name", "Usuário da Métrica");
         corpo.put("email", "dono-metrica@test.com");
-        corpo.put("password", "senha123456");
+        corpo.put("password", "Senha123456");
         corpo.put("birthDate", "1990-01-01");
 
         MvcResult result = mockMvc.perform(post("/auth/register")
