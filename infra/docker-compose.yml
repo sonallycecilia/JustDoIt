@@ -11,6 +11,11 @@ services:
       - mysql_data:/var/lib/mysql
     restart: unless-stopped
 
+  auth-service:
+    build: ./services/auth-service
+    environment:
+      - TURNSTILE_SECRET_KEY=0x4AAAAAAEULltpK1lxOnrhgkQMWoUio0IM
+
   redis-justdoit:
     image: redis:alpine
     container_name: cache_justdoit
