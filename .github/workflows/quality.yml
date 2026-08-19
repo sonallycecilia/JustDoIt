@@ -21,6 +21,10 @@ jobs:
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Verificar versões das migrations Flyway
+        shell: bash
+        run: bash scripts/check-flyway-migrations.sh
+
       - name: Preparar Gradle Wrapper
         shell: bash
         run: chmod +x ./gradlew

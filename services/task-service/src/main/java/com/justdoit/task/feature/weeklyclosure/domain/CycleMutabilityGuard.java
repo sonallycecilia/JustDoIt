@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -26,8 +27,16 @@ public class CycleMutabilityGuard {
             return; // Tarefas sem ciclo podem ser modificadas livremente
         }
 
-        WeeklyCycle cycle = cycleRepository.findById(cycleId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ciclo não encontrado."));
+        Optional<WeeklyCycle> cycleEncontrado = cycleRepository.findById(cycleId);
+        // task.cycle_id nasceu sem chave estrangeira. Bancos anteriores à V7
+        // podem conter tarefas válidas apontando para ciclos que já não existem.
+        // A tarefa continua sendo do usuário e deve permanecer operável; a V7
+        // limpa esses vínculos e impede novos registros órfãos.
+        if (cycleEncontrado.isEmpty()) {
+            return;
+        }
+
+        WeeklyCycle cycle = cycleEncontrado.get();
 
         if (cycle.getStatus() == CycleStatus.CLOSED) {
             throw new ResponseStatusException(

@@ -115,7 +115,8 @@ class ScheduleServiceTest {
         when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, TODAY, TODAY.plusDays(6)))
                 .thenReturn(List.of(timeBlock));
         when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.empty());
-        when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6))).thenReturn(Optional.empty());
+        when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6)))
+                .thenReturn(Optional.of(new TaskReport(5, 3, 4_500L, 150L)));
         when(weeklySummaryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(weeklyPlanRepository.save(any())).thenReturn(closed);
 
@@ -124,6 +125,22 @@ class ScheduleServiceTest {
         assertEquals(ScheduleStatus.CLOSED, result.status());
         // O retrato tem de ser gravado ANTES do fechamento, senão a semana fecha vazia
         verify(weeklySummaryRepository).save(any(WeeklySummary.class));
+    }
+
+    @Test
+    void closeWeeklyPlan_semRelatorio_naoFechaUmaSemanaSemSnapshotCompleto() {
+        when(weeklyPlanRepository.findByIdAndUserId(PLAN_ID, USER_ID)).thenReturn(Optional.of(weeklyPlan));
+        when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, TODAY, TODAY.plusDays(6)))
+                .thenReturn(List.of(timeBlock));
+        when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.empty());
+        when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6))).thenReturn(Optional.empty());
+        when(weeklySummaryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.closeWeeklyPlan(PLAN_ID, USER_ID, AUTH_HEADER));
+
+        assertEquals(ScheduleStatus.OPEN, weeklyPlan.getStatus());
+        verify(weeklyPlanRepository, never()).save(any());
     }
 
     @Test
@@ -184,6 +201,71 @@ class ScheduleServiceTest {
         assertEquals(3, result.completedTasks());
         // 4500s executados - 60min agendados (3600s) = 900s de desvio
         assertEquals(900L, result.deviationSeconds());
+        verify(weeklySummaryRepository).save(argThat(summary ->
+                summary.getAnalyticsPayload() != null
+                        && summary.getAnalyticsPayload().version() == WeeklyAnalyticsPayload.CURRENT_VERSION
+                        && summary.getAnalyticsPayload().timeBlocks().size() == 1));
+    }
+
+    @Test
+    void getWeeklyAnalytics_semanaAberta_reuneRelatorioEAgendaAoVivo() {
+        TaskReport report = new TaskReport(2, 1, 3_600L, 120L);
+        when(weeklyPlanRepository.findByUserIdAndWeekStartDate(USER_ID, TODAY))
+                .thenReturn(Optional.of(weeklyPlan));
+        when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6)))
+                .thenReturn(Optional.of(report));
+        when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, TODAY, TODAY.plusDays(6)))
+                .thenReturn(List.of(timeBlock));
+
+        WeeklyAnalyticsResponse result = service.getWeeklyAnalytics(TODAY, USER_ID, AUTH_HEADER);
+
+        assertEquals("LIVE", result.source());
+        assertEquals(ScheduleStatus.OPEN, result.status());
+        assertEquals(2, result.report().totalTasks());
+        assertEquals(1, result.timeBlocks().size());
+    }
+
+    @Test
+    void getWeeklyAnalytics_semanaFechada_usaSnapshotSemConsultarDadosMutaveis() {
+        weeklyPlan.setStatus(ScheduleStatus.CLOSED);
+        TaskReport congelado = new TaskReport(7, 5, 4_500L, 600L);
+        WeeklySummary summary = WeeklySummary.builder()
+                .weeklyPlan(weeklyPlan)
+                .dataStatus(SummaryDataStatus.COMPLETE)
+                .analyticsPayload(new WeeklyAnalyticsPayload(
+                        WeeklyAnalyticsPayload.CURRENT_VERSION,
+                        congelado,
+                        List.of(new TimeBlockResponse(BLOCK_ID, USER_ID, null, START, END, 60, TODAY))))
+                .build();
+        when(weeklyPlanRepository.findByUserIdAndWeekStartDate(USER_ID, TODAY))
+                .thenReturn(Optional.of(weeklyPlan));
+        when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.of(summary));
+
+        WeeklyAnalyticsResponse result = service.getWeeklyAnalytics(TODAY, USER_ID, AUTH_HEADER);
+
+        assertEquals("SNAPSHOT", result.source());
+        assertEquals(ScheduleStatus.CLOSED, result.status());
+        assertEquals(7, result.report().totalTasks());
+        verifyNoInteractions(taskReportClient, timeBlockRepository);
+    }
+
+    @Test
+    void getWeeklyAnalytics_snapshotAntigo_reconstroiComoParcial() {
+        weeklyPlan.setStatus(ScheduleStatus.CLOSED);
+        WeeklySummary antigo = WeeklySummary.builder().weeklyPlan(weeklyPlan).build();
+        TaskReport reconstruido = new TaskReport(1, 0, 0, 30);
+        when(weeklyPlanRepository.findByUserIdAndWeekStartDate(USER_ID, TODAY))
+                .thenReturn(Optional.of(weeklyPlan));
+        when(weeklySummaryRepository.findByWeeklyPlanId(PLAN_ID)).thenReturn(Optional.of(antigo));
+        when(taskReportClient.getReport(AUTH_HEADER, TODAY, TODAY.plusDays(6)))
+                .thenReturn(Optional.of(reconstruido));
+        when(timeBlockRepository.findByUserIdAndDateBetween(USER_ID, TODAY, TODAY.plusDays(6)))
+                .thenReturn(List.of());
+
+        WeeklyAnalyticsResponse result = service.getWeeklyAnalytics(TODAY, USER_ID, AUTH_HEADER);
+
+        assertEquals("RECONSTRUCTED", result.source());
+        assertEquals(SummaryDataStatus.PARTIAL, result.dataStatus());
     }
 
     @Test

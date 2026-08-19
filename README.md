@@ -174,6 +174,10 @@ já aplicada nunca deve ser editada.
 docker-compose -f infra/docker-compose.yml up -d
 ```
 
+O deploy automatizado dos quatro serviços na VPS, incluindo configuração do
+GitHub Actions, `systemd`, health checks e rollback, está documentado em
+[`docs/deploy-vps.md`](docs/deploy-vps.md).
+
 ---
 
 ## Como Rodar

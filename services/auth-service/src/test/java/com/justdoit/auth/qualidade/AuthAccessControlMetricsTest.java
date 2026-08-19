@@ -216,7 +216,7 @@ class AuthAccessControlMetricsTest {
                 .compact();
 
         mockMvc.perform(get("/auth/me").header("Authorization", "Bearer " + tokenForjado))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // ─────────────────────────────────────────────
@@ -224,7 +224,7 @@ class AuthAccessControlMetricsTest {
     // ─────────────────────────────────────────────
 
     private String registrarEObterToken(String email, String nome) throws Exception {
-        RegisterRequest request = new RegisterRequest(nome, email, "senha123", LocalDate.of(1990, 1, 1));
+        RegisterRequest request = new RegisterRequest(nome, email, "Senha123", LocalDate.of(1990, 1, 1));
         MvcResult result = mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

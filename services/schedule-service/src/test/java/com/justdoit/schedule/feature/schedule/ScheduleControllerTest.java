@@ -3,11 +3,14 @@ package com.justdoit.schedule.feature.schedule;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.justdoit.common.security.JwtValidator;
 import static com.justdoit.common.security.AuthTestSupport.authenticatedUser;
+import com.justdoit.schedule.config.WebSecurityConfig;
+import com.justdoit.schedule.integration.TaskReportClient;
 import com.justdoit.schedule.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ScheduleController.class)
+@Import(WebSecurityConfig.class)
 class ScheduleControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -44,6 +48,13 @@ class ScheduleControllerTest {
 
     @BeforeEach
     void setUp() {
+    }
+
+    @Test
+    void protectedEndpoint_withoutToken_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/time-blocks").param("date", TODAY.toString()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Autenticação necessária"));
     }
 
     @Test
@@ -215,5 +226,35 @@ class ScheduleControllerTest {
         mockMvc.perform(get("/weekly-plans/{id}/summary", PLAN_ID)
                         .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void closeWeeklyPlan_semSnapshotCompleto_returns503() throws Exception {
+        when(scheduleService.closeWeeklyPlan(eq(PLAN_ID), eq(USER_ID), anyString()))
+                .thenThrow(new IllegalStateException("snapshot unavailable"));
+
+        mockMvc.perform(patch("/weekly-plans/{id}/close", PLAN_ID)
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
+                .andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
+    void getWeeklyAnalytics_returnsCanonicalPayload() throws Exception {
+        TaskReportClient.TaskReport report = new TaskReportClient.TaskReport(7, 5, 3_600, 600);
+        WeeklyAnalyticsResponse response = new WeeklyAnalyticsResponse(
+                TODAY, TODAY.plusDays(6), ScheduleStatus.CLOSED, "SNAPSHOT",
+                SummaryDataStatus.COMPLETE, report, List.of());
+        when(scheduleService.getWeeklyAnalytics(TODAY, USER_ID, "Bearer mock-token"))
+                .thenReturn(response);
+
+        mockMvc.perform(get("/analytics/weeks/{weekStart}", TODAY)
+                        .with(authenticatedUser(USER_ID))
+                        .header("Authorization", "Bearer mock-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("SNAPSHOT"))
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.report.totalTasks").value(7));
     }
 }

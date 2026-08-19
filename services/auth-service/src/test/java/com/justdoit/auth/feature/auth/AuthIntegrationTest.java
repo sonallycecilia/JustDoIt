@@ -37,7 +37,7 @@ class AuthIntegrationTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     private static final String EMAIL = "integration@test.com";
-    private static final String PASSWORD = "senha123";
+    private static final String PASSWORD = "Senha123";
     private static final RegisterRequest VALID_REGISTER = new RegisterRequest(
             "Integration User", EMAIL, PASSWORD, LocalDate.of(1990, 6, 15)
     );
@@ -87,6 +87,20 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.birthDate").isNotEmpty());
     }
 
+    @Test
+    @DisplayName("register: deve retornar 400 quando a senha não atende à política de senha forte")
+    void register_deveRetornar400_quandoSenhaNaoAtendeAPolitica() throws Exception {
+        RegisterRequest senhaFraca = new RegisterRequest(
+                "Usuário Senha Fraca", "senha-fraca@test.com", "abcdefgh", LocalDate.of(1990, 1, 1)
+        );
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(senhaFraca)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.password").isNotEmpty());
+        }
+
     // ─────────────────────────────────────────────
     // POST /auth/login
     // ─────────────────────────────────────────────
@@ -102,6 +116,44 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new LoginRequest(EMAIL, PASSWORD))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("login: conta B não deve revogar o refresh token da conta A")
+    void login_deOutraConta_devePreservarSessaoExistente() throws Exception {
+        RegisterRequest accountA = new RegisterRequest(
+                "Usuário A", "account-a@test.com", PASSWORD, LocalDate.of(1990, 1, 10));
+        RegisterRequest accountB = new RegisterRequest(
+                "Usuário B", "account-b@test.com", PASSWORD, LocalDate.of(1992, 2, 20));
+
+        MvcResult accountARegister = mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(accountA)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String accountARefreshToken = objectMapper
+                .readTree(accountARegister.getResponse().getContentAsString())
+                .get("refreshToken").asText();
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(accountB)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new LoginRequest(accountB.email(), PASSWORD, true))))
+                .andExpect(status().isOk());
+
+        // A sessão de A continua renovável depois do login independente de B.
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new RefreshRequest(accountARefreshToken))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty());
@@ -184,10 +236,11 @@ class AuthIntegrationTest {
     }
 
     @Test
-    @DisplayName("me: deve retornar 403 quando não autenticado")
-    void me_deveRetornar403_quandoNaoAutenticado() throws Exception {
+    @DisplayName("me: deve retornar 401 quando não autenticado")
+    void me_deveRetornar401_quandoNaoAutenticado() throws Exception {
         mockMvc.perform(get("/auth/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Autenticação necessária"));
     }
 
     // ─────────────────────────────────────────────
@@ -212,10 +265,10 @@ class AuthIntegrationTest {
     }
 
     @Test
-    @DisplayName("logout: deve retornar 403 quando não autenticado")
-    void logout_deveRetornar403_quandoNaoAutenticado() throws Exception {
+    @DisplayName("logout: deve retornar 401 quando não autenticado")
+    void logout_deveRetornar401_quandoNaoAutenticado() throws Exception {
         mockMvc.perform(post("/auth/logout"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // ─────────────────────────────────────────────
