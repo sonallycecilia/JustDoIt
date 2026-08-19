@@ -217,12 +217,11 @@ class TaskControllerTest {
         TaskResponse completed = new TaskResponse(TASK_ID, USER_ID, null, "Test task", null,
                 null, TaskStatus.COMPLETED, Priority.NORMAL, null, null,
                 LocalDateTime.now(), LocalDateTime.now(), null, null);
-        when(taskService.completeTask(eq(TASK_ID), eq(USER_ID), anyString())).thenReturn(completed);
+        when(taskService.completeTask(eq(TASK_ID), eq(USER_ID))).thenReturn(completed);
 
         mockMvc.perform(patch("/tasks/{id}/complete", TASK_ID)
                         .with(csrf())
-                        .with(authenticatedUser(USER_ID))
-                        .header("Authorization", "Bearer mock-token"))
+                        .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
     }

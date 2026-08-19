@@ -1,7 +1,6 @@
 package com.justdoit.task.feature.report;
 import com.justdoit.task.feature.focussession.FocusSessionRepository;
 import com.justdoit.task.feature.focussession.FocusSession;
-import com.justdoit.task.integration.NotificationClient;
 import com.justdoit.task.feature.task.TaskRepository;
 import com.justdoit.task.feature.task.Task;
 

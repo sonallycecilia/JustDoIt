@@ -1,5 +1,4 @@
 package com.justdoit.task.feature.task;
-import com.justdoit.task.integration.NotificationClient;
 
 import com.justdoit.task.shared.TaskStatus;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +29,6 @@ import java.util.List;
 public class OverdueTaskJob {
 
     private final TaskRepository taskRepository;
-    private final NotificationClient notificationClient;
 
     @Scheduled(cron = "0 15 * * * *") // de hora em hora, aos 15 min
     @Transactional
@@ -45,7 +43,5 @@ public class OverdueTaskJob {
         taskRepository.saveAll(overdue);
         log.info("{} tarefa(s) marcada(s) como OVERDUE", overdue.size());
 
-        overdue.forEach(task ->
-                notificationClient.notifyTaskOverdue(task.getUserId(), task.getId(), task.getTitle()));
     }
 }

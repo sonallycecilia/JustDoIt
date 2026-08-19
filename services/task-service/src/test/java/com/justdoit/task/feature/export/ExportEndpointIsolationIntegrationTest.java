@@ -1,6 +1,5 @@
 package com.justdoit.task.feature.export;
 
-import com.justdoit.task.integration.NotificationClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +30,6 @@ class ExportEndpointIsolationIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @MockitoBean private TaskExportPageReader pageReader;
     @MockitoBean private TaskExportStreamingWriter writer;
-    @MockitoBean private NotificationClient notificationClient;
 
     private final CountDownLatch workersStarted = new CountDownLatch(2);
     private final CountDownLatch releaseWorkers = new CountDownLatch(1);

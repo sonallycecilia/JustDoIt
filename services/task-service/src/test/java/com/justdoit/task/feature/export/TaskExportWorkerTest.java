@@ -1,6 +1,5 @@
 package com.justdoit.task.feature.export;
 
-import com.justdoit.task.integration.NotificationClient;
 import com.justdoit.task.shared.ExportFormat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,8 +28,6 @@ class TaskExportWorkerTest {
     @Mock private TaskExportService legacyExportService;
     @Mock private ExportProperties properties;
     @Mock private ExportMetrics metrics;
-    @Mock private ExportJobLinks links;
-    @Mock private NotificationClient notificationClient;
     @TempDir Path tempDir;
 
     private TaskExportWorker worker;
@@ -41,7 +38,7 @@ class TaskExportWorkerTest {
     @BeforeEach
     void setUp() {
         worker = new TaskExportWorker(repository, storage, writer, legacyExportService,
-                properties, metrics, links, notificationClient);
+                properties, metrics);
         jobId = UUID.randomUUID();
         userId = UUID.randomUUID();
         job = ExportJob.builder().id(jobId).userId(userId).format(ExportFormat.CSV)
@@ -50,7 +47,7 @@ class TaskExportWorkerTest {
     }
 
     @Test
-    void completedJobStoresMetadataAndNotifiesWithTemporaryLink() throws Exception {
+    void completedJobStoresMetadata() throws Exception {
         Path path = tempDir.resolve(jobId + ".csv");
         when(storage.allocate(jobId, ExportFormat.CSV))
                 .thenReturn(new ExportFileStorage.StoredExport(jobId + ".csv", path));
@@ -59,7 +56,6 @@ class TaskExportWorkerTest {
         when(properties.getDownloadTtl()).thenReturn(Duration.ofMinutes(15));
         when(legacyExportService.fileName(eq(ExportFormat.CSV), any()))
                 .thenReturn("export_tarefas.csv");
-        when(links.downloadUrl(job)).thenReturn("https://api/download?signed");
 
         worker.process(jobId);
 
@@ -68,8 +64,6 @@ class TaskExportWorkerTest {
         assertThat(job.getFileSizeBytes()).isEqualTo(4096);
         assertThat(job.getDownloadExpiresAt()).isEqualTo(job.getCompletedAt().plusMinutes(15));
         verify(metrics).completed(any(), eq(new ExportGenerationResult(500, 4096)));
-        verify(notificationClient).notifyExportReady(
-                userId, "https://api/download?signed", job.getDownloadExpiresAt());
     }
 
     @Test

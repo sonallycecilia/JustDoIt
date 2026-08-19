@@ -39,14 +39,14 @@ class NotificationControllerTest {
     @BeforeEach
     void setUp() {
         notifResponse = new NotificationResponse(NOTIF_ID, USER_ID, null,
-                NotificationType.TASK_COMPLETED, "Task done", "Your task was completed",
+                NotificationType.TASK_REMINDER, "Task reminder", "Your task is due soon",
                 false, LocalDateTime.now());
     }
 
     @Test
     void createNotification_returnsCreated() throws Exception {
         CreateNotificationRequest request = new CreateNotificationRequest(
-                null, NotificationType.TASK_COMPLETED, "Task done", "Your task was completed");
+                null, NotificationType.TASK_REMINDER, "Task reminder", "Your task is due soon");
         when(notificationService.createNotification(any(), eq(USER_ID))).thenReturn(notifResponse);
 
         mockMvc.perform(post("/notifications")
@@ -56,7 +56,7 @@ class NotificationControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(NOTIF_ID.toString()))
-                .andExpect(jsonPath("$.title").value("Task done"))
+                .andExpect(jsonPath("$.title").value("Task reminder"))
                 .andExpect(jsonPath("$.read").value(false));
     }
 
@@ -67,7 +67,7 @@ class NotificationControllerTest {
                         .with(authenticatedUser(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new CreateNotificationRequest(null, NotificationType.TASK_COMPLETED, "", "msg"))))
+                                new CreateNotificationRequest(null, NotificationType.TASK_REMINDER, "", "msg"))))
                 .andExpect(status().isBadRequest());
     }
 
@@ -94,7 +94,7 @@ class NotificationControllerTest {
     @Test
     void markAsRead_returnsOk() throws Exception {
         NotificationResponse readResponse = new NotificationResponse(NOTIF_ID, USER_ID, null,
-                NotificationType.TASK_COMPLETED, "Task done", "Your task was completed",
+                NotificationType.TASK_REMINDER, "Task reminder", "Your task is due soon",
                 true, LocalDateTime.now());
         when(notificationService.markAsRead(NOTIF_ID, USER_ID)).thenReturn(readResponse);
 
@@ -135,6 +135,16 @@ class NotificationControllerTest {
                         .with(csrf())
                         .with(authenticatedUser(USER_ID)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteAllNotifications_returnsNoContent() throws Exception {
+        mockMvc.perform(delete("/notifications")
+                        .with(csrf())
+                        .with(authenticatedUser(USER_ID)))
+                .andExpect(status().isNoContent());
+
+        verify(notificationService).deleteAllNotifications(USER_ID);
     }
 
     @Test

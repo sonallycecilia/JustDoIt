@@ -116,7 +116,7 @@ class ValidacaoEntradaMetricsTest {
 
     private Map<String, Object> corpo(String title, String message) {
         Map<String, Object> corpo = new LinkedHashMap<>();
-        corpo.put("type", NotificationType.TASK_COMPLETED.name());
+        corpo.put("type", NotificationType.TASK_REMINDER.name());
         corpo.put("title", title);
         corpo.put("message", message);
         return corpo;

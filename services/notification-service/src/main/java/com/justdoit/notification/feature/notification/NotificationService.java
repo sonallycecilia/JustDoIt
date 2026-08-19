@@ -58,14 +58,21 @@ public class NotificationService {
         notificationRepository.delete(notification);
     }
 
+    @Transactional
+    public void deleteAllNotifications(UUID userId) {
+        notificationRepository.deleteByUserId(userId);
+    }
+
     public List<NotificationResponse> getUnreadByUser(UUID userId) {
-        return notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId).stream()
+        return notificationRepository.findByUserIdAndReadFalseAndTypeOrderByCreatedAtDesc(
+                        userId, NotificationType.TASK_REMINDER).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public List<NotificationResponse> getAllByUser(UUID userId) {
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        return notificationRepository.findByUserIdAndTypeOrderByCreatedAtDesc(
+                        userId, NotificationType.TASK_REMINDER).stream()
                 .map(this::toResponse)
                 .toList();
     }

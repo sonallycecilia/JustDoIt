@@ -273,11 +273,10 @@ class TaskServiceTest {
         when(taskRepository.findByIdAndUserId(TASK_ID, USER_ID)).thenReturn(Optional.of(task));
         when(taskRepository.save(any())).thenReturn(completed);
 
-        TaskResponse result = service.completeTask(TASK_ID, USER_ID, "Bearer token");
+        TaskResponse result = service.completeTask(TASK_ID, USER_ID);
 
         assertEquals(TaskStatus.COMPLETED, result.status());
         assertNotNull(task.getCompletedAt());
-        verify(eventPublisher).publishEvent(any(TaskCompletedEvent.class));
     }
 
     @Test

@@ -47,11 +47,11 @@ class InternalNotificationControllerTest {
     @Test
     void validInternalToken_createsExportNotificationWithoutJwt() throws Exception {
         InternalNotificationRequest request = new InternalNotificationRequest(
-                USER_ID, null, NotificationType.EXPORT_READY,
+                USER_ID, null, NotificationType.TASK_REMINDER,
                 "Exportação pronta", "Baixe em http://temporary-link");
         when(notificationService.createInternalNotification(any())).thenReturn(
                 new NotificationResponse(NOTIFICATION_ID, USER_ID, null,
-                        NotificationType.EXPORT_READY, request.title(), request.message(),
+                        NotificationType.TASK_REMINDER, request.title(), request.message(),
                         false, LocalDateTime.now()));
 
         mockMvc.perform(post("/internal/notifications")
@@ -59,7 +59,7 @@ class InternalNotificationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.type").value("EXPORT_READY"));
+                .andExpect(jsonPath("$.type").value("TASK_REMINDER"));
 
         verify(notificationService).createInternalNotification(any());
     }
@@ -67,7 +67,7 @@ class InternalNotificationControllerTest {
     @Test
     void missingOrInvalidInternalToken_isRejected() throws Exception {
         InternalNotificationRequest request = new InternalNotificationRequest(
-                USER_ID, null, NotificationType.EXPORT_READY,
+                USER_ID, null, NotificationType.TASK_REMINDER,
                 "Exportação pronta", "Baixe em http://temporary-link");
 
         mockMvc.perform(post("/internal/notifications")

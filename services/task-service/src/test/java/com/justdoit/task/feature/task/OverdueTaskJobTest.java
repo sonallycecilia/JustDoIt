@@ -1,5 +1,4 @@
 package com.justdoit.task.feature.task;
-import com.justdoit.task.integration.NotificationClient;
 
 import com.justdoit.task.shared.TaskStatus;
 import org.junit.jupiter.api.DisplayName;
@@ -22,7 +21,6 @@ import static org.mockito.Mockito.*;
 class OverdueTaskJobTest {
 
     @Mock private TaskRepository taskRepository;
-    @Mock private NotificationClient notificationClient;
     @InjectMocks private OverdueTaskJob job;
 
     private Task tarefaVencida(UUID userId) {
@@ -45,8 +43,6 @@ class OverdueTaskJobTest {
         assertEquals(TaskStatus.OVERDUE, t1.getStatus());
         assertEquals(TaskStatus.OVERDUE, t2.getStatus());
         verify(taskRepository).saveAll(List.of(t1, t2));
-        verify(notificationClient).notifyTaskOverdue(user1, t1.getId(), "Atrasada");
-        verify(notificationClient).notifyTaskOverdue(user2, t2.getId(), "Atrasada");
     }
 
     @Test
@@ -58,6 +54,5 @@ class OverdueTaskJobTest {
         job.markOverdueTasks();
 
         verify(taskRepository, never()).saveAll(any());
-        verifyNoInteractions(notificationClient);
     }
 }

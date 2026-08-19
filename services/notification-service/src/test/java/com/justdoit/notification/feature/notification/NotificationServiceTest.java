@@ -35,7 +35,7 @@ class NotificationServiceTest {
     void setUp() {
         notification = Notification.builder()
                 .id(NOTIF_ID).userId(USER_ID)
-                .type(NotificationType.TASK_COMPLETED)
+                .type(NotificationType.TASK_REMINDER)
                 .title("Task done").message("Your task was completed")
                 .read(false).createdAt(LocalDateTime.now())
                 .build();
@@ -49,14 +49,14 @@ class NotificationServiceTest {
     @Test
     void createNotification_savesAndReturnsResponse() {
         CreateNotificationRequest request = new CreateNotificationRequest(
-                null, NotificationType.TASK_COMPLETED, "Task done", "Your task was completed");
+                null, NotificationType.TASK_REMINDER, "Task reminder", "Your task is due soon");
         when(notificationRepository.save(any())).thenReturn(notification);
 
         NotificationResponse result = service.createNotification(request, USER_ID);
 
         assertEquals(NOTIF_ID, result.id());
         assertEquals(USER_ID, result.userId());
-        assertEquals(NotificationType.TASK_COMPLETED, result.type());
+        assertEquals(NotificationType.TASK_REMINDER, result.type());
         assertFalse(result.read());
         verify(notificationRepository).save(any(Notification.class));
     }
@@ -65,7 +65,7 @@ class NotificationServiceTest {
     void markAsRead_setsReadTrue() {
         Notification readNotif = Notification.builder()
                 .id(NOTIF_ID).userId(USER_ID)
-                .type(NotificationType.TASK_COMPLETED)
+                .type(NotificationType.TASK_REMINDER)
                 .title("Task done").message("Your task was completed")
                 .read(true).createdAt(LocalDateTime.now())
                 .build();
@@ -112,8 +112,16 @@ class NotificationServiceTest {
     }
 
     @Test
+    void deleteAllNotifications_deletesOnlyTheAuthenticatedUsersAlerts() {
+        service.deleteAllNotifications(USER_ID);
+
+        verify(notificationRepository).deleteByUserId(USER_ID);
+    }
+
+    @Test
     void getUnreadByUser_returnsList() {
-        when(notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(USER_ID))
+        when(notificationRepository.findByUserIdAndReadFalseAndTypeOrderByCreatedAtDesc(
+                USER_ID, NotificationType.TASK_REMINDER))
                 .thenReturn(List.of(notification));
 
         List<NotificationResponse> result = service.getUnreadByUser(USER_ID);
@@ -125,7 +133,8 @@ class NotificationServiceTest {
 
     @Test
     void getAllByUser_returnsList() {
-        when(notificationRepository.findByUserIdOrderByCreatedAtDesc(USER_ID))
+        when(notificationRepository.findByUserIdAndTypeOrderByCreatedAtDesc(
+                USER_ID, NotificationType.TASK_REMINDER))
                 .thenReturn(List.of(notification));
 
         List<NotificationResponse> result = service.getAllByUser(USER_ID);

@@ -1,6 +1,5 @@
 package com.justdoit.task.feature.export;
 
-import com.justdoit.task.integration.NotificationClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -24,8 +23,6 @@ public class TaskExportWorker {
     private final TaskExportService legacyExportService;
     private final ExportProperties properties;
     private final ExportMetrics metrics;
-    private final ExportJobLinks links;
-    private final NotificationClient notificationClient;
 
     @Async("exportExecutor")
     public void process(UUID jobId) {
@@ -57,8 +54,6 @@ public class TaskExportWorker {
 
             Duration elapsed = Duration.between(started, Instant.now());
             metrics.completed(elapsed, result);
-            notificationClient.notifyExportReady(
-                    job.getUserId(), links.downloadUrl(job), job.getDownloadExpiresAt());
         } catch (Exception error) {
             if (path != null) storage.delete(path.getFileName().toString());
             job.setStatus(ExportJobStatus.FAILED);
