@@ -20,6 +20,16 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Debug secrets (sem expor valor)
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -Eeuo pipefail
+          echo "VPS_HOST length: ${#VPS_HOST}"
+          echo "VPS_USER length: ${#VPS_USER}"
+
       - name: Verificar variável no .env remoto (sem expor o valor)
         shell: bash
         env:
@@ -28,11 +38,6 @@ jobs:
           VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT || '22' }}
           VPS_APP_DIR: ${{ vars.VPS_APP_DIR || '/opt/justdoit' }}
         run: |
-          ssh -p "$VPS_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$VPS_USER@$VPS_HOST" \
-            "if grep -q '^TURNSTILE_SECRET_KEY=' '$VPS_APP_DIR/.env'; then \
-               echo 'PRESENTE: a linha TURNSTILE_SECRET_KEY existe no .env'; \
-               grep '^TURNSTILE_SECRET_KEY=' '$VPS_APP_DIR/.env' | wc -c; \
-             else \
-               echo 'AUSENTE: nenhuma linha TURNSTILE_SECRET_KEY encontrada'; \
-             fi"
+          set -Eeuo pipefail
+          REMOTE_CMD="if grep -q '^TURNSTILE_SECRET_KEY=' '$VPS_APP_DIR/.env'; then echo 'PRESENTE: a linha TURNSTILE_SECRET_KEY existe no .env'; grep '^TURNSTILE_SECRET_KEY=' '$VPS_APP_DIR/.env' | wc -c; else echo 'AUSENTE: nenhuma linha TURNSTILE_SECRET_KEY encontrada'; fi"
+          ssh -p "$VPS_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" "$REMOTE_CMD"
