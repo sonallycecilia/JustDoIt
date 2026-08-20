@@ -6,6 +6,8 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    environment:
+      name: production
     steps:
       - name: Configurar acesso SSH
         shell: bash
@@ -30,7 +32,7 @@ jobs:
           echo "VPS_HOST length: ${#VPS_HOST}"
           echo "VPS_USER length: ${#VPS_USER}"
 
-      - name: Verificar variável no .env remoto(sem expor valor)
+      - name: Verificar variável no .env remoto (sem expor valor)
         shell: bash
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
