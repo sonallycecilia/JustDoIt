@@ -2,6 +2,7 @@
 build/
 .tools/
 quality-test.log
+quality-reports/
 # Saída de compilação das IDEs (IntelliJ: out/, Eclipse/VS Code: bin/)
 out/
 bin/

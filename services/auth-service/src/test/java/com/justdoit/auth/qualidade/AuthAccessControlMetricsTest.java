@@ -1,16 +1,19 @@
 package com.justdoit.auth.qualidade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.justdoit.auth.feature.auth.TurnstileService;
 import com.justdoit.auth.shared.RegisterRequest;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
@@ -26,6 +29,8 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -53,6 +58,14 @@ class AuthAccessControlMetricsTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private TurnstileService turnstileService;
+
+    @BeforeEach
+    void allowTurnstileForAccessControlScenarios() {
+        when(turnstileService.isValid(nullable(String.class))).thenReturn(true);
+    }
 
     // Mesmo segredo do application-test.yml — usado para forjar tokens válidos/expirados.
     private static final String TEST_SECRET =

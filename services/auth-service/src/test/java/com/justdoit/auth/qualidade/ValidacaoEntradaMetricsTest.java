@@ -1,6 +1,8 @@
 package com.justdoit.auth.qualidade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.justdoit.auth.feature.auth.TurnstileService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
@@ -47,6 +52,13 @@ class ValidacaoEntradaMetricsTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
+
+    @MockitoBean private TurnstileService turnstileService;
+
+    @BeforeEach
+    void allowTurnstileForInputValidationScenarios() {
+        when(turnstileService.isValid(nullable(String.class))).thenReturn(true);
+    }
 
     private static final List<String> PAYLOADS_MALICIOSOS = List.of(
             "<script>alert('xss')</script>",
