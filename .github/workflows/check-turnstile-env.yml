@@ -30,7 +30,7 @@ jobs:
           echo "VPS_HOST length: ${#VPS_HOST}"
           echo "VPS_USER length: ${#VPS_USER}"
 
-      - name: Verificar variável no .env remoto (sem expor o valor)
+      - name: Verificar variável no .env remoto(sem expor valor)
         shell: bash
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
