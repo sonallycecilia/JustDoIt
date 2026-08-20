@@ -57,6 +57,12 @@ public class NotificationController {
         }
     }
 
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAllNotifications(@AuthenticationPrincipal UUID userId) {
+        notificationService.deleteAllNotifications(userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/preferences")
     public ResponseEntity<NotificationPreferenceResponse> getPreferences(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(notificationService.getOrCreatePreference(userId));

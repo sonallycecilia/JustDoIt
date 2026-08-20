@@ -7,7 +7,6 @@ import com.justdoit.task.shared.TaskResponse;
 import com.justdoit.task.shared.DeleteScope;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -70,12 +69,9 @@ public class TaskController {
 
     @PatchMapping("/{id}/complete")
     public ResponseEntity<TaskResponse> completeTask(@PathVariable UUID id,
-                                                     @AuthenticationPrincipal UUID userId,
-                                                     @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader) {
+                                                     @AuthenticationPrincipal UUID userId) {
         try {
-            // O header segue junto para o notification-service ser chamado com o
-            // token do próprio usuário (nunca com credencial do serviço).
-            return ResponseEntity.ok(taskService.completeTask(id, userId, authHeader));
+            return ResponseEntity.ok(taskService.completeTask(id, userId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }

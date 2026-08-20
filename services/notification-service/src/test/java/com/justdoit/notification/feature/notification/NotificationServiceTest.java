@@ -4,6 +4,7 @@ import com.justdoit.notification.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -35,8 +36,8 @@ class NotificationServiceTest {
     void setUp() {
         notification = Notification.builder()
                 .id(NOTIF_ID).userId(USER_ID)
-                .type(NotificationType.TASK_COMPLETED)
-                .title("Task done").message("Your task was completed")
+                .type(NotificationType.TASK_REMINDER)
+                .title("Task reminder").message("Your task is due soon")
                 .read(false).createdAt(LocalDateTime.now())
                 .build();
 
@@ -49,14 +50,14 @@ class NotificationServiceTest {
     @Test
     void createNotification_savesAndReturnsResponse() {
         CreateNotificationRequest request = new CreateNotificationRequest(
-                null, NotificationType.TASK_COMPLETED, "Task done", "Your task was completed");
+                null, NotificationType.TASK_REMINDER, "Task reminder", "Your task is due soon");
         when(notificationRepository.save(any())).thenReturn(notification);
 
         NotificationResponse result = service.createNotification(request, USER_ID);
 
         assertEquals(NOTIF_ID, result.id());
         assertEquals(USER_ID, result.userId());
-        assertEquals(NotificationType.TASK_COMPLETED, result.type());
+        assertEquals(NotificationType.TASK_REMINDER, result.type());
         assertFalse(result.read());
         verify(notificationRepository).save(any(Notification.class));
     }
@@ -65,8 +66,8 @@ class NotificationServiceTest {
     void markAsRead_setsReadTrue() {
         Notification readNotif = Notification.builder()
                 .id(NOTIF_ID).userId(USER_ID)
-                .type(NotificationType.TASK_COMPLETED)
-                .title("Task done").message("Your task was completed")
+                .type(NotificationType.TASK_REMINDER)
+                .title("Task reminder").message("Your task is due soon")
                 .read(true).createdAt(LocalDateTime.now())
                 .build();
         when(notificationRepository.findById(NOTIF_ID)).thenReturn(Optional.of(notification));
@@ -112,8 +113,36 @@ class NotificationServiceTest {
     }
 
     @Test
+    void deleteAllNotifications_deletesOnlyCurrentUsersNotifications() {
+        service.deleteAllNotifications(USER_ID);
+
+        verify(notificationRepository).deleteByUserId(USER_ID);
+    }
+
+    @Test
+    void createNotification_taskCompleted_isRejectedWithoutPersistence() {
+        CreateNotificationRequest request = new CreateNotificationRequest(
+                null, NotificationType.TASK_COMPLETED, "Task done", "Completed");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.createNotification(request, USER_ID));
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void createInternalNotification_taskCompleted_isRejectedWithoutPersistence() {
+        InternalNotificationRequest request = new InternalNotificationRequest(
+                USER_ID, null, NotificationType.TASK_COMPLETED, "Task done", "Completed");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.createInternalNotification(request));
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
     void getUnreadByUser_returnsList() {
-        when(notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(USER_ID))
+        when(notificationRepository.findByUserIdAndReadFalseAndTypeNotOrderByCreatedAtDesc(
+                USER_ID, NotificationType.TASK_COMPLETED))
                 .thenReturn(List.of(notification));
 
         List<NotificationResponse> result = service.getUnreadByUser(USER_ID);
@@ -121,17 +150,22 @@ class NotificationServiceTest {
         assertEquals(1, result.size());
         assertEquals(NOTIF_ID, result.get(0).id());
         assertFalse(result.get(0).read());
+        verify(notificationRepository).findByUserIdAndReadFalseAndTypeNotOrderByCreatedAtDesc(
+                USER_ID, NotificationType.TASK_COMPLETED);
     }
 
     @Test
     void getAllByUser_returnsList() {
-        when(notificationRepository.findByUserIdOrderByCreatedAtDesc(USER_ID))
+        when(notificationRepository.findByUserIdAndTypeNotOrderByCreatedAtDesc(
+                USER_ID, NotificationType.TASK_COMPLETED))
                 .thenReturn(List.of(notification));
 
         List<NotificationResponse> result = service.getAllByUser(USER_ID);
 
         assertEquals(1, result.size());
         assertEquals(NOTIF_ID, result.get(0).id());
+        verify(notificationRepository).findByUserIdAndTypeNotOrderByCreatedAtDesc(
+                USER_ID, NotificationType.TASK_COMPLETED);
     }
 
     @Test
@@ -153,7 +187,10 @@ class NotificationServiceTest {
         NotificationPreferenceResponse result = service.getOrCreatePreference(USER_ID);
 
         assertEquals(PREF_ID, result.id());
-        verify(preferenceRepository).save(any(NotificationPreference.class));
+        ArgumentCaptor<NotificationPreference> preferenceCaptor =
+                ArgumentCaptor.forClass(NotificationPreference.class);
+        verify(preferenceRepository).save(preferenceCaptor.capture());
+        assertFalse(preferenceCaptor.getValue().getNotifyOnComplete());
     }
 
     @Test
@@ -170,5 +207,6 @@ class NotificationServiceTest {
 
         assertFalse(result.notifyOnComplete());
         assertTrue(result.notifyOnOverdue());
+        assertFalse(preference.getNotifyOnComplete());
     }
 }

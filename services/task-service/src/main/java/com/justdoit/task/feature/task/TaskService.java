@@ -14,7 +14,6 @@ import com.justdoit.task.feature.cycle.CycleConfigRepository;
 import com.justdoit.task.feature.weeklyclosure.domain.CycleMutabilityGuard;
 import com.justdoit.task.feature.weeklyclosure.domain.WeeklyCycleProvisioningService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +32,6 @@ public class TaskService {
     private final SubTaskRepository subTaskRepository;
     private final CategoryRepository categoryRepository;
     private final CycleConfigRepository cycleConfigRepository;
-    private final ApplicationEventPublisher eventPublisher;
     private final CycleMutabilityGuard cycleMutabilityGuard;
     private final WeeklyCycleProvisioningService cycleProvisioningService;
 
@@ -164,7 +162,7 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskResponse completeTask(UUID taskId, UUID userId, String authorizationHeader) {
+    public TaskResponse completeTask(UUID taskId, UUID userId) {
         Task task = taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         
@@ -172,10 +170,7 @@ public class TaskService {
 
         task.setStatus(TaskStatus.COMPLETED);
         task.setCompletedAt(LocalDateTime.now());
-        TaskResponse response = toResponse(taskRepository.save(task));
-        
-        eventPublisher.publishEvent(new TaskCompletedEvent(task.getId(), task.getTitle(), authorizationHeader));
-        return response;
+        return toResponse(taskRepository.save(task));
     }
 
     @Transactional
