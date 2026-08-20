@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.justdoit.auth.shared.LoginRequest;
 import com.justdoit.auth.shared.RefreshRequest;
 import com.justdoit.auth.shared.RegisterRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,8 @@ import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,11 +40,19 @@ class AuthIntegrationTest {
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
+    @MockitoBean
+    private TurnstileService turnstileService;
+
     private static final String EMAIL = "integration@test.com";
     private static final String PASSWORD = "Senha123";
     private static final RegisterRequest VALID_REGISTER = new RegisterRequest(
             "Integration User", EMAIL, PASSWORD, LocalDate.of(1990, 6, 15)
     );
+
+    @BeforeEach
+    void allowTurnstileForAuthenticationScenarios() {
+        when(turnstileService.isValid(nullable(String.class))).thenReturn(true);
+    }
 
     // ─────────────────────────────────────────────
     // POST /auth/register

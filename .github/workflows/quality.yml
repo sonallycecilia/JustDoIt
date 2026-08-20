@@ -18,12 +18,12 @@ jobs:
       QUALITY_RUN_ID: github-actions-${{ github.run_id }}-${{ github.run_attempt }}
       QUALITY_ENVIRONMENT: GitHub Actions / ubuntu-latest / Temurin 21 / H2 em modo MySQL
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Verificar versões das migrations Flyway
         shell: bash
@@ -32,6 +32,13 @@ jobs:
       - name: Preparar Gradle Wrapper
         shell: bash
         run: chmod +x ./gradlew
+
+      - name: Registrar ambiente de execução
+        shell: bash
+        run: |
+          java -version
+          ./gradlew --version
+          date --utc --iso-8601=seconds
 
       - name: Preparar execução e limpar evidências anteriores
         shell: pwsh
@@ -42,7 +49,7 @@ jobs:
         shell: pwsh
         continue-on-error: true
         run: |
-          $testOutput = & ./gradlew test --no-daemon --console=plain 2>&1
+          $testOutput = & ./gradlew test --rerun-tasks --no-build-cache --no-daemon --console=plain 2>&1
           $gradleExitCode = $LASTEXITCODE
           $testOutput | Tee-Object -FilePath quality-test.log
           exit $gradleExitCode
@@ -61,7 +68,7 @@ jobs:
 
       - name: Publicar relatórios e evidências
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qualidade-backend-${{ github.sha }}
           if-no-files-found: error
