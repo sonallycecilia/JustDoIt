@@ -13,6 +13,10 @@ jobs:
   metricas-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      QUALITY_COMMIT: ${{ github.sha }}
+      QUALITY_RUN_ID: github-actions-${{ github.run_id }}-${{ github.run_attempt }}
+      QUALITY_ENVIRONMENT: GitHub Actions / ubuntu-latest / Temurin 21 / H2 em modo MySQL
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -29,6 +33,10 @@ jobs:
         shell: bash
         run: chmod +x ./gradlew
 
+      - name: Preparar execução e limpar evidências anteriores
+        shell: pwsh
+        run: ./scripts/prepare-quality-run.ps1
+
       - name: Executar testes e métricas
         id: tests
         shell: pwsh
@@ -40,13 +48,16 @@ jobs:
           exit $gradleExitCode
 
       - name: Gerar relatórios por atributo
+        id: reports
         if: always()
         shell: pwsh
+        continue-on-error: true
         run: |
           ./scripts/generate-quality-reports.ps1 `
             -Commit '${{ github.sha }}' `
-            -Environment 'GitHub Actions / ubuntu-latest / Temurin 21 / H2 em modo MySQL' `
-            -TestLog 'quality-test.log'
+            -Environment "$env:QUALITY_ENVIRONMENT" `
+            -TestLog 'quality-test.log' `
+            -EnforceGates
 
       - name: Publicar relatórios e evidências
         if: always()
@@ -56,12 +67,13 @@ jobs:
           if-no-files-found: error
           path: |
             docs/quality/*.md
+            quality-reports/**
             quality-test.log
             **/build/test-results/test/**
             **/build/reports/tests/test/**
             **/build/reports/jacoco/test/**
 
       - name: Aplicar gate dos testes
-        if: always() && steps.tests.outcome != 'success'
+        if: always() && (steps.tests.outcome != 'success' || steps.reports.outcome != 'success')
         shell: pwsh
-        run: throw 'Os testes ou as métricas do backend falharam.'
+        run: throw 'Os testes, as evidências ou as métricas do backend falharam.'

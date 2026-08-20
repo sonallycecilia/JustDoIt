@@ -1,9 +1,16 @@
 ﻿# Usabilidade
 
-> Gerado automaticamente.  
-> Commit: `b5774b3b68a5d8823790c0dac5530fb75b999e70`  
-> Data UTC: `2026-08-10T01:26:16Z`  
-> Ambiente: Local limpo / Windows 11 / Temurin 21.0.12+8 / H2 modo MySQL
+> Gerado automaticamente.
+>
+> Commit: `d5bf645743c3854ba17d79ef3f5d66a8c838d4e7`
+>
+> Árvore de trabalho: com alterações não commitadas
+>
+> Execução: `pr-validation-backend-quality`
+>
+> Data UTC: `2026-08-20T14:17:40Z`
+>
+> Ambiente: Validação local / Windows / Java disponível / H2 em modo MySQL
 
 | Métrica | Situação | Denominador | Resultado | Limite/meta |
 |---|---|---:|---:|---:|
