@@ -1,0 +1,38 @@
+name: Checar TURNSTILE_SECRET_KEY na VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar acesso SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Verificar variável no .env remoto (sem expor o valor)
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT || '22' }}
+          VPS_APP_DIR: ${{ vars.VPS_APP_DIR || '/opt/justdoit' }}
+        run: |
+          ssh -p "$VPS_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" \
+            "if grep -q '^TURNSTILE_SECRET_KEY=' '$VPS_APP_DIR/.env'; then \
+               echo 'PRESENTE: a linha TURNSTILE_SECRET_KEY existe no .env'; \
+               grep '^TURNSTILE_SECRET_KEY=' '$VPS_APP_DIR/.env' | wc -c; \
+             else \
+               echo 'AUSENTE: nenhuma linha TURNSTILE_SECRET_KEY encontrada'; \
+             fi"
