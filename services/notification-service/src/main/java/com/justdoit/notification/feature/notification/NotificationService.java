@@ -17,6 +17,7 @@ public class NotificationService {
 
     @Transactional
     public NotificationResponse createNotification(CreateNotificationRequest request, UUID userId) {
+        rejectCompletedTaskNotification(request.type());
         Notification notification = Notification.builder()
                 .userId(userId)
                 .taskId(request.taskId())
@@ -39,6 +40,7 @@ public class NotificationService {
 
     @Transactional
     public NotificationResponse createInternalNotification(InternalNotificationRequest request) {
+        rejectCompletedTaskNotification(request.type());
         Notification notification = Notification.builder()
                 .userId(request.userId())
                 .taskId(request.taskId())
@@ -58,14 +60,21 @@ public class NotificationService {
         notificationRepository.delete(notification);
     }
 
+    @Transactional
+    public void deleteAllNotifications(UUID userId) {
+        notificationRepository.deleteByUserId(userId);
+    }
+
     public List<NotificationResponse> getUnreadByUser(UUID userId) {
-        return notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId).stream()
+        return notificationRepository.findByUserIdAndReadFalseAndTypeNotOrderByCreatedAtDesc(
+                        userId, NotificationType.TASK_COMPLETED).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public List<NotificationResponse> getAllByUser(UUID userId) {
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        return notificationRepository.findByUserIdAndTypeNotOrderByCreatedAtDesc(
+                        userId, NotificationType.TASK_COMPLETED).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -75,7 +84,7 @@ public class NotificationService {
                 .orElseGet(() -> {
                     NotificationPreference newPref = NotificationPreference.builder()
                             .userId(userId)
-                            .notifyOnComplete(true)
+                            .notifyOnComplete(false)
                             .notifyOnOverdue(true)
                             .notifyOnCycleReset(true)
                             .build();
@@ -88,7 +97,7 @@ public class NotificationService {
     public NotificationPreferenceResponse updatePreference(UUID userId, NotificationPreferenceRequest request) {
         NotificationPreference pref = preferenceRepository.findByUserId(userId)
                 .orElse(NotificationPreference.builder().userId(userId).build());
-        if (request.notifyOnComplete() != null) pref.setNotifyOnComplete(request.notifyOnComplete());
+        pref.setNotifyOnComplete(false);
         if (request.notifyOnOverdue() != null) pref.setNotifyOnOverdue(request.notifyOnOverdue());
         if (request.notifyOnCycleReset() != null) pref.setNotifyOnCycleReset(request.notifyOnCycleReset());
         return toPrefResponse(preferenceRepository.save(pref));
@@ -97,6 +106,12 @@ public class NotificationService {
     private NotificationResponse toResponse(Notification n) {
         return new NotificationResponse(n.getId(), n.getUserId(), n.getTaskId(),
                 n.getType(), n.getTitle(), n.getMessage(), n.getRead(), n.getCreatedAt());
+    }
+
+    private void rejectCompletedTaskNotification(NotificationType type) {
+        if (type == NotificationType.TASK_COMPLETED) {
+            throw new IllegalArgumentException("Task completion notifications are disabled");
+        }
     }
 
     private NotificationPreferenceResponse toPrefResponse(NotificationPreference p) {

@@ -18,10 +18,7 @@ import java.time.format.DateTimeFormatter;
  * auth-service). Notificação é best-effort: qualquer falha é logada e engolida —
  * nunca derruba a operação de negócio que a disparou.
  *
- * Dois caminhos:
- * - {@link #notifyTaskCompleted}: fluxo com usuário presente — repassa o token da
- *   própria request (POST /notifications, userId sai do JWT lá).
- * - {@link #notifyTaskOverdue}: fluxo de job, sem usuário — usa o endpoint interno
+ * Os fluxos sem usuário presente usam o endpoint interno
  *   (POST /internal/notifications) autenticado por segredo compartilhado de env.
  */
 @Slf4j
@@ -33,31 +30,12 @@ public class NotificationClient {
 
     public NotificationClient(@Value("${app.notification-service.url:http://localhost:8083}") String baseUrl,
                               @Value("${app.internal-token:}") String internalToken) {
-        // Timeouts curtos: o envio roda no caminho da request do usuário (após o
-        // commit) ou dentro do job — um notification-service lento não pode segurar.
+        // Timeouts curtos: um notification-service lento não pode segurar o job.
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(2_000);
         factory.setReadTimeout(3_000);
         this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
         this.internalToken = internalToken;
-    }
-
-    public void notifyTaskCompleted(String authorizationHeader, UUID taskId, String taskTitle) {
-        try {
-            restClient.post()
-                    .uri("/notifications")
-                    .header("Authorization", authorizationHeader)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of(
-                            "taskId", taskId,
-                            "type", "TASK_COMPLETED",
-                            "title", "Tarefa concluída",
-                            "message", "Você concluiu a tarefa \"" + truncate(taskTitle) + "\"."))
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (Exception e) {
-            log.warn("Falha (ignorada) ao notificar conclusão da task {}: {}", taskId, e.getMessage());
-        }
     }
 
     public void notifyTaskOverdue(UUID userId, UUID taskId, String taskTitle) {
