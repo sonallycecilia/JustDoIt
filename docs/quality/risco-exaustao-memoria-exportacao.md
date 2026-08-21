@@ -43,7 +43,8 @@ Defina `EXPORT_DOWNLOAD_SECRET` com um segredo exclusivo em produção e configu
 Prometheus e Grafana estão provisionados em `infra/docker-compose.yml`. O painel
 **JustDoIt / Exportação assíncrona** mostra duração P95, memória JVM, ocupação do
 pool e da fila, registros, bytes, erros, limites, timeouts e P95 dos demais
-endpoints. Consulte `infra/observability/README.md` para iniciar o ambiente.
+endpoints. Consulte [Observabilidade](../observabilidade.md) para iniciar o
+ambiente.
 
 ## Evidências automatizadas
 
