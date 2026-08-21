@@ -86,7 +86,11 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     // tarefas legadas para o ciclo atualmente aberto do usuário, uma única
     // vez (idempotente: depois da primeira execução não sobra nenhuma com
     // cycle_id nulo, então as próximas chamadas não afetam nenhuma linha).
-    @Modifying(clearAutomatically = true)
+    // O provisionamento pode ter acabado de criar o WeeklyCycle na mesma
+    // transação. O flush precisa acontecer ANTES deste update em lote: o
+    // clear automático descartaria a entidade ainda pendente e a tarefa passaria
+    // a referenciar um cycle_id inexistente (FK fk_task_weekly_cycle, HTTP 500).
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Task t set t.cycleId = :cycleId where t.userId = :userId and t.cycleId is null")
     int adoptOrphanTasks(@Param("userId") UUID userId, @Param("cycleId") UUID cycleId);
 }
