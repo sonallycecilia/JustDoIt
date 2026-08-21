@@ -24,9 +24,10 @@ backup não possa ser criado ou validado.
 
 ## Preparação única da VPS
 
-A VPS precisa ter Java 21, `curl`, `tar`, Nginx, Docker com Compose e os serviços
-de MySQL e Redis em execução. O usuário de deploy deve ser o mesmo configurado nas
-unidades `systemd` (atualmente `ubuntu`).
+A VPS precisa ter Java 21, `curl`, `tar`, Nginx, Docker com Compose e MySQL em
+execução. O Redis está provisionado pelo Compose, mas o código atual não o usa;
+ele não é pré-requisito funcional dos quatro serviços. O usuário de deploy deve
+ser o mesmo configurado nas unidades `systemd` (atualmente `ubuntu`).
 
 ```bash
 sudo mkdir -p /opt/justdoit/releases /opt/justdoit/backups

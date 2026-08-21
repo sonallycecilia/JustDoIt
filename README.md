@@ -1,221 +1,125 @@
-# JustDoIt — Gerenciador de Tarefas
+# JustDoIt Backend
 
-O **JustDoIt** é uma plataforma web focada no gerenciamento de tarefas e produtividade pessoal por meio da metodologia de blocos de tempo (*time-blocking*). O sistema organiza demandas em contextos específicos e oferece monitoramento analítico de esforço.
+Backend do JustDoIt, uma aplicação de produtividade pessoal com tarefas, agenda,
+cronômetro, ciclos semanais, notificações e exportação de dados.
 
----
+> Estado verificado em 20/08/2026 contra `origin/main`, commit `dc6d9f2`. O
+> código é a fonte de verdade quando houver divergência com um documento
+> histórico.
 
-## Estrutura do Projeto
+## Visão rápida
 
-Projeto multi-módulo **Spring Boot 3.4.1 / Java 21** gerenciado pelo Gradle, composto por 4 serviços independentes que compartilham um único banco MySQL, mais uma biblioteca comum.
+O projeto é um monorepo Gradle com Java 21 e Spring Boot 3.4.1. Ele contém quatro
+aplicações independentes e uma biblioteca compartilhada:
 
-> **Fluxo completo em diagramas:** [`docs/diagramas/`](docs/diagramas/) — arquitetura,
-> autenticação, modelo de dados, cronômetro, recorrência, resumo semanal, jobs e deploy.
+| Módulo | Porta | Responsabilidade principal |
+|---|---:|---|
+| `auth-service` | 8080 | cadastro, login, perfil, JWT, refresh token e Turnstile |
+| `task-service` | 8081 | tarefas, notas, categorias, tempo, recorrência, fechamento semanal e exportação |
+| `schedule-service` | 8082 | blocos de tempo, planos semanais e análises |
+| `notification-service` | 8083 | lembretes, notificações e mensagens de suporte |
+| `libs/common` | — | validação JWT, filtro de autenticação, erros e validações compartilhadas |
 
-```
+Os quatro serviços usam o mesmo banco MySQL, mas cada um mantém suas próprias
+migrations e sua própria tabela de histórico do Flyway. O Nginx expõe uma API
+única em `https://justdoitapi.duckdns.org` e encaminha cada prefixo ao serviço
+correspondente.
+
+## Estrutura
+
+```text
 JustDoIt/
-├── libs/
-│   └── common/                # Biblioteca compartilhada (validação JWT, filtro, exception handler)
-├── services/
-│   ├── auth-service/          # Autenticação, emissão de JWT e refresh tokens (8080)
-│   ├── task-service/          # Tarefas, categorias, anotações e relatórios (8081)
-│   ├── schedule-service/      # Blocos de tempo e plano semanal (8082)
-│   └── notification-service/  # Notificações e preferências (8083)
-└── infra/
-    ├── docker-compose.yml
-    └── nginx.conf             # Reverse proxy por prefixo de rota
+├── docs/                    documentação do backend
+├── infra/                   Compose, Nginx, systemd e observabilidade
+├── libs/common/             código compartilhado
+├── quality-tests/           testes de carga
+├── scripts/                 qualidade, empacotamento e deploy
+└── services/
+    ├── auth-service/
+    ├── task-service/
+    ├── schedule-service/
+    └── notification-service/
 ```
 
-Cada serviço segue o layout **feature-based**:
+Dentro de cada serviço, o código é agrupado por funcionalidade em `feature/`,
+com configurações transversais em `config/`, contratos comuns em `shared/` e
+clientes entre serviços em `integration/`.
 
-```
-com.justdoit.<service>/
-├── feature/<name>/   # Controller, Service, Entities, Repositories
-├── integration/      # Clientes HTTP entre serviços (quando houver)
-├── config/           # WebSecurityConfig (+ RateLimitFilter no auth)
-└── shared/           # DTOs (records), Enums
-```
+## Executar localmente
 
-> A validação de token (`JwtValidator`), o filtro de autenticação (`JwtAuthFilter`)
-> e o `GlobalExceptionHandler` **não** ficam mais em cada serviço: vivem em
-> `libs/common` e são reusados por todos. Nos controllers, o usuário autenticado
-> chega via `@AuthenticationPrincipal UUID userId` (o filtro coloca o UUID como
-> principal no SecurityContext).
+Pré-requisitos: JDK 21, Docker com Compose e PowerShell ou um shell compatível.
 
----
+1. Crie um `infra/.env` local, ignorado pelo Git, e defina pelo menos
+   `SPRING_DATASOURCE_PASSWORD`, `REDIS_PASSWORD` e `JWT_SECRET`.
+2. Suba a infraestrutura local:
 
-## libs/common
+   ```bash
+   docker compose --env-file infra/.env -f infra/docker-compose.yml up -d mysql-justdoit redis-justdoit
+   ```
 
-Biblioteca Gradle compartilhada pelos quatro serviços. Contém o que antes era
-copiado em cada um:
+3. Inicie os serviços, cada um em um terminal:
 
-| Classe | Responsabilidade |
-|---|---|
-| `JwtValidator` | Valida access tokens (assinatura, `iss`/`aud`, `type=access`) e lê `sub`/`email`. Constantes `ISSUER`/`AUDIENCE` são a fonte única de verdade. |
-| `JwtAuthFilter` | Autentica a request pelo header `Authorization` e põe o UUID do usuário como principal. |
-| `GlobalExceptionHandler` + `ErrorResponse` | Tratamento padrão de validação (400). |
-| `AuthTestSupport` (test-fixture) | `authenticatedUser(UUID)` para os testes de slice dos serviços. |
+   ```bash
+   ./gradlew :services:auth-service:bootRun
+   ./gradlew :services:task-service:bootRun
+   ./gradlew :services:schedule-service:bootRun
+   ./gradlew :services:notification-service:bootRun
+   ```
 
-**A geração de token é exclusiva do auth-service** (`JwtUtil.generateAccessToken`).
-O common só valida — nenhum outro serviço emite tokens.
+No Windows, use `gradlew.bat` no lugar de `./gradlew`.
 
----
-
-## Serviços
-
-### auth-service (8080)
-Registro, login, emissão de access token (stateless, ~15 min) e rotação de refresh tokens.
-
-| Classe | Responsabilidade |
-|---|---|
-| `AuthController` | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/check-email`, `/auth/me`, `/auth/logout` |
-| `AuthService` | Autenticação e emissão de token |
-| `JwtUtil` | **Geração** do access token (validação fica no `JwtValidator` do common) |
-| `User` | Entidade de usuário (tabela `users`) |
-| `RefreshToken` (+ `RefreshTokenCleanupJob`) | Refresh tokens persistidos (tabela `refresh_token`), com limpeza periódica dos expirados |
-| `RateLimitFilter` | Rate limit por IP nos endpoints públicos |
-
-O access token é **stateless** — não é persistido. Contém `sub` (userId UUID),
-`email`, `profile`, `type=access`, `iss=justdoit-auth-service`, `aud=justdoit-api`.
-
-### task-service (8081)
-Tarefas e todo o conteúdo de produtividade. `Task` é o aggregate root.
-
-| Pacote | Conteúdo |
-|---|---|
-| `feature.task` | Aggregate root `Task` + `SubTask`, CRUD de tarefas/subtarefas, `OverdueTaskJob` |
-| `feature.tasknote` | `TaskNote` — nota vinculada a UMA tarefa (`/tasks/{id}/note`) |
-| `feature.note` | `Note` — anotações livres do usuário (aba **Anotações**, `/notes`) + bloco fixado no To Do (`/me/note`) |
-| `feature.timer` | Cronômetro por tarefa (`/tasks/{id}/timer`), com `start`/`stop` medidos pelo servidor. `ActiveTimer` garante **um cronômetro ativo por usuário** via índice único; o segundo acionamento simultâneo recebe 409. `GET /timers/active` devolve o que está em curso |
-| `feature.focussession` | Sessões de foco (`/tasks/{id}/focus-sessions`) |
-| `feature.cycle` | Tarefas cíclicas/recorrentes (`/tasks/{id}/cycle-config`) |
-| `feature.moduleconfig` | Configuração de módulos por tarefa (`/tasks/{id}/module-config`) |
-| `feature.report` | Relatório agregado por período (`/tasks/report`, consumido pelo schedule) |
-| `feature.category` | Categorias (`/categories`) |
-| `feature.userdata` | Purga dos dados do usuário na exclusão de conta (`DELETE /me/data`, chamada interna auth→task) |
-| `feature.export` | Exportação das tarefas do usuário em CSV/JSON (`GET /me/export?format=`, aba Configurações → Dados) |
-| `integration` | `NotificationClient`, `TaskCompletedListener` (comunicação com o notification-service) |
-
-**Anotações:** `Note` permite várias notas por usuário. No máximo uma é `pinned`
-(a nota fixada, exibida no topo do To Do e servida por `/me/note` para manter
-compatibilidade com o frontend). Os dados do antigo `UserNote`/`user_note` são
-migrados automaticamente para `note` no boot (`UserNoteMigrationRunner`,
-idempotente); a tabela `user_note` permanece como backup até remoção manual.
-
-### schedule-service (8082)
-Blocos de tempo e planos semanais. Feature única e coesa (`feature.schedule`) —
-não foi fatiada em subfeatures por ser pequena.
-
-| Classe | Responsabilidade |
-|---|---|
-| `WeeklyPlan` | Plano da semana (status `OPEN` / `CLOSED`) |
-| `TimeBlock` | Bloco de tempo alocado em um dia |
-| `WeeklySummary` | Resumo analítico da semana |
-
-### notification-service (8083)
-
-| Classe | Responsabilidade |
-|---|---|
-| `Notification` | Registro de notificação por usuário |
-| `NotificationPreference` | Configurações de alerta do usuário |
-
----
-
-## Autenticação (JWT Flow)
-
-1. `/auth/register` ou `/auth/login` retornam um **access token** (jjwt 0.12.5, HS256)
-   e um **refresh token**.
-2. O access token é **stateless** (não é armazenado) e carrega `sub` (userId UUID),
-   `email`, `profile`. O refresh token é persistido (tabela `refresh_token`).
-3. Os demais endpoints exigem `Authorization: Bearer <access token>`.
-4. Cada serviço valida o token com o `JwtValidator`/`JwtAuthFilter` do `libs/common`
-   (mesmo segredo HMAC, sem dependência cruzada entre serviços). O auth-service é o
-   único emissor.
-
----
-
-## Roteamento (nginx)
-
-O `infra/nginx.conf` roteia por prefixo de rota:
-
-| Prefixo | Serviço |
-|---|---|
-| `/auth`, `/users` | auth-service (8080) |
-| `/tasks`, `/timers`, `/categories`, `/notes`, `/me/note`, `/me/export` | task-service (8081) |
-| `/events`, `/time-blocks`, `/weekly-plans`, `/analytics` | schedule-service (8082) |
-| `/notifications` | notification-service (8083) |
-
-`/me/data` (purga de dados) e os endpoints `/internal/**` **não** são roteados
-pelo nginx — são chamadas internas entre serviços.
-
----
-
-## Infraestrutura
-
-O banco `justdoit_db` é criado automaticamente (`createDatabaseIfNotExist=true`).
-O schema é versionado pelo **Flyway** e o Hibernate usa `ddl-auto=validate`: ele
-valida o mapeamento, mas nunca altera tabelas durante o startup.
-
-Cada serviço mantém somente as migrations do próprio domínio e usa uma tabela de
-histórico independente:
-
-| Serviço | Histórico Flyway |
-|---|---|
-| auth-service | `flyway_auth_history` |
-| task-service | `flyway_task_history` |
-| schedule-service | `flyway_schedule_history` |
-| notification-service | `flyway_notification_history` |
-
-Os baselines `V1` usam `CREATE TABLE IF NOT EXISTS`, permitindo adoção sobre o
-banco legado anteriormente mantido por `ddl-auto=update`. Novas mudanças devem
-ser adicionadas como `V2__descricao.sql`, `V3__descricao.sql` etc.; uma migration
-já aplicada nunca deve ser editada.
+Comandos úteis:
 
 ```bash
-docker-compose -f infra/docker-compose.yml up -d
-```
-
-O deploy automatizado dos quatro serviços na VPS, incluindo configuração do
-GitHub Actions, `systemd`, health checks e rollback, está documentado em
-[`docs/deploy-vps.md`](docs/deploy-vps.md).
-
----
-
-## Como Rodar
-
-**Pré-requisitos:** Java 21, MySQL rodando.
-
-```bash
-# Subir um serviço específico
-./gradlew :services:task-service:bootRun
-
-# Build de tudo
-./gradlew build
-
-# Rodar testes (inclui libs:common)
 ./gradlew test
+./gradlew build
+./gradlew :services:task-service:bootJar
 ```
 
-O frontend é servido separadamente (repositório `justdoit-frontend`). CORS está
-configurado em todos os serviços para a origem do frontend.
+## Configuração importante
 
----
+As aplicações leem configuração do ambiente. As variáveis mais relevantes são:
 
-## Tech Stack
-
-| Camada | Tecnologia |
+| Variável | Uso |
 |---|---|
-| Linguagem | Java 21 |
-| Framework | Spring Boot 3.4.1 |
-| Build | Gradle (multi-módulo) |
-| Persistência | Spring Data JPA + MySQL (H2 nos testes) |
-| Segurança | Spring Security 6.x — JWT stateless, CSRF desabilitado |
-| JWT | jjwt 0.12.5 |
-| Utilitários | Lombok, Bean Validation (jakarta.validation) |
+| `SPRING_DATASOURCE_PASSWORD` | senha do MySQL |
+| `JWT_SECRET` | assinatura e validação dos access tokens |
+| `CORS_ALLOWED_ORIGINS` | origens permitidas, separadas por vírgula |
+| `TASK_SERVICE_URL` | integração auth/schedule → task |
+| `NOTIFICATION_SERVICE_URL` | integração task → notification |
+| `INTERNAL_API_TOKEN` | autenticação do endpoint interno de notificações |
+| `TURNSTILE_SECRET_KEY` | validação do Cloudflare Turnstile no login e cadastro |
+| `EXPORT_STORAGE_PATH` | diretório privado dos arquivos exportados |
+| `EXPORT_DOWNLOAD_SECRET` | assinatura dos links temporários de download |
+| `PUBLIC_TASK_API_URL` | base pública usada nos links de exportação |
 
----
+Produção não deve depender dos valores padrão de segredos presentes na
+configuração de desenvolvimento.
 
-## Contribuição
+## Documentação
 
-- **Branch:** `feature/JD-XX-nome-da-tarefa`
-- **Commit:** descrição clara da mudança
-- Todo código passa por Pull Request — nada vai direto para `main`.
+- [Arquitetura atual](docs/arquitetura.md)
+- [Deploy na VPS](docs/deploy-vps.md)
+- [Observabilidade](docs/observabilidade.md)
+- [Risco de memória na exportação](docs/quality/risco-exaustao-memoria-exportacao.md)
+- [Correção funcional](docs/quality/correcao-funcional.md)
+- [Desempenho](docs/quality/desempenho.md)
+- [Segurança](docs/quality/seguranca.md)
+- [Usabilidade](docs/quality/usabilidade.md)
+
+Os quatro relatórios de atributos em `docs/quality/` são gerados pelo pipeline e
+representam uma execução identificada por commit, data e ambiente. Eles não
+devem ser lidos como garantia permanente de produção.
+
+## Estado conhecido
+
+- O pipeline de qualidade executa testes Gradle, métricas e validação das versões
+  Flyway.
+- O deploy da VPS ocorre após qualidade aprovada na `main` e possui health check
+  e rollback dos JARs.
+- O `task-service` expõe métricas Prometheus; os demais serviços expõem health
+  checks.
+- As migrations possuem versões únicas no estado verificado: auth até V1,
+  notification até V5, schedule até V4 e task até V8.
+- O Compose provisiona MySQL, Redis, Prometheus e Grafana. Os quatro serviços
+  Spring são executados pelo Gradle localmente e por systemd na VPS.
