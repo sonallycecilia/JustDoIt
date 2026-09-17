@@ -17,8 +17,7 @@ Principais dependências de runtime:
 - React, React DOM e React Router;
 - TanStack Query para cache e sincronização da API;
 - TipTap para o editor de texto rico das anotações;
-- `react-window` para virtualizar listas grandes de tarefas;
-- `@marsidev/react-turnstile` para o desafio anti-bot.
+- `react-window` para virtualizar listas grandes de tarefas.
 
 ## Estrutura
 
@@ -44,7 +43,7 @@ Cada feature cria apenas as pastas de que precisa (`pages`, `components`,
 
 | Área | Rotas | Estado implementado |
 |---|---|---|
-| Landing e autenticação | `/`, `/signup`, `/onboarding` | login e cadastro com Turnstile, perfil inicial |
+| Landing e autenticação | `/`, `/signup`, `/onboarding` | login, cadastro e perfil inicial |
 | Visão geral | `/visao-geral` | resumo de tarefas e produtividade |
 | Tarefas | `/todo`, `/tasks/nova`, `/tasks/:id` | CRUD, subtarefas, timer, foco, recorrência e lembrete |
 | Anotações | `/anotacoes` | notas livres com editor TipTap e nota fixada |
@@ -66,8 +65,6 @@ o desenvolvimento”.
   baixo até a legenda, em vez de comprimir ou cortar a grade.
 - O painel lateral de detalhes do calendário pode ser redimensionado no desktop.
 - Os divisores de redimensionamento aceitam ponteiro e teclado.
-- O Turnstile usa o formato compacto até 332 px e o formato flexível nas telas
-  maiores, evitando overflow no cadastro.
 
 ## API e estado remoto
 
@@ -171,7 +168,6 @@ e publica pelo GitHub Actions.
 - URL: `https://justdoit-app.duckdns.org/`
 - `public/CNAME` preserva o domínio próprio.
 - O build cria `404.html` como fallback das rotas do React Router.
-- `VITE_TURNSTILE_SITE_KEY` é fornecida como secret durante o build.
 
 ## Documentação
 

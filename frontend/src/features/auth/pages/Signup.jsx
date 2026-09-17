@@ -6,20 +6,16 @@ import DatePicker from '@/components/DatePicker';
 import { api } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { useIniciarSessao } from '@/features/auth/hooks/useSessao';
-import { useResponsiveTurnstileSize } from '@/features/auth/hooks/useResponsiveTurnstileSize';
 import { alternarTema } from '@/lib/theme';
 import { capitalizarNome, dataIso } from '@/lib/utils';
 import { PasswordStrength } from '../components/PasswordStrength';
 import { validarSenha } from '@/lib/senha';
-import { TURNSTILE_LOCAL_TEST_MODE, TURNSTILE_SITE_KEY } from '@/lib/turnstile';
-import { Turnstile } from '@marsidev/react-turnstile';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Signup() {
   const navigate = useNavigate();
   const iniciarSessao = useIniciarSessao();
-  const turnstileSize = useResponsiveTurnstileSize();
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [nascimento, setNascimento] = useState(null);
@@ -34,8 +30,6 @@ export default function Signup() {
 
   const [emailStatus, setEmailStatus] = useState('idle');
   const emailVerificado = useRef('');
-
-  const [turnstileToken, setTurnstileToken] = useState(null);
 
   useEffect(() => {
     const atual = email.trim();
@@ -60,15 +54,11 @@ export default function Signup() {
   }, [email]);
 
   const cadastro = useMutation({
-    mutationFn: (token) => api.post(endpoints.auth.register, {
+    mutationFn: () => api.post(endpoints.auth.register, {
       name: capitalizarNome(nome),
       email: email.trim(),
       password: senha,
       birthDate: dataIso(nascimento),
-    }, {
-      headers: {
-        'X-Turnstile-Token': token
-      }
     }),
     onSuccess: (res) => {
       iniciarSessao(
@@ -96,9 +86,7 @@ export default function Signup() {
     }
     if (senha !== confirmar) { setErroSenha(true); return; }
     if (!termos) { setErroForm('É preciso aceitar os Termos de Uso.'); return; }
-    if (!turnstileToken) { setErroForm('Aguarde a verificação de segurança (Turnstile) ser concluída.'); return; }
-
-    cadastro.mutate(turnstileToken); 
+    cadastro.mutate();
   }
 
   const statusEmail = {
@@ -226,21 +214,6 @@ export default function Signup() {
 
               {erroForm && <span className="field__error">{erroForm}</span>}
               
-              <div className="auth__turnstile">
-                <Turnstile
-                  siteKey={TURNSTILE_SITE_KEY}
-                  onSuccess={(token) => {
-                    console.log("Turnstile gerado com sucesso:", token);
-                    setTurnstileToken(token);
-                  }}
-                  onExpire={() => {
-                    console.log("Turnstile expirou");
-                    setTurnstileToken(null);
-                  }}
-                  options={{ theme: 'light', size: TURNSTILE_LOCAL_TEST_MODE ? 'invisible' : turnstileSize }}
-                />
-              </div>
-
               <button 
                 type="submit" 
                 className="btn btn--primary btn--lg btn--full" 

@@ -51,10 +51,6 @@ SERVICES = ["auth-service", "task-service", "schedule-service", "notification-se
 # explícita faria o backend local subir duas vezes (Docker + Gradle).
 INFRA_SERVICES = ["mysql-justdoit", "redis-justdoit", "prometheus", "grafana"]
 
-# Par oficial da Cloudflare para validar o Turnstile em localhost. A chave real,
-# quando definida em infra/.env, sempre tem precedência.
-LOCAL_TURNSTILE_TEST_SECRET = "1x0000000000000000000000000000000AA"
-
 PORT = 3000  # CORS do backend só aceita http://localhost:3000
 
 
@@ -73,7 +69,6 @@ def load_env():
                 continue
             key, value = line.split("=", 1)
             os.environ[key.strip()] = value.strip()
-    os.environ.setdefault("TURNSTILE_SECRET_KEY", LOCAL_TURNSTILE_TEST_SECRET)
     print(f"[ENV] Carregado {ENV_FILE}")
 
 

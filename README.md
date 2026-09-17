@@ -10,7 +10,7 @@ retirar a independência de build e execução de cada parte.
 | Componente | Tecnologia | Porta local | Responsabilidade |
 |---|---|---:|---|
 | Frontend | React 18 e Vite 6 | 3000 | interface web e estado do cliente |
-| `auth-service` | Spring Boot 3.4.1 | 8080 | cadastro, login, perfil, JWT, refresh token e Turnstile |
+| `auth-service` | Spring Boot 3.4.1 | 8080 | cadastro, login, perfil, JWT e refresh token |
 | `task-service` | Spring Boot 3.4.1 | 8081 | tarefas, notas, categorias, tempo, recorrência, ciclos e exportação |
 | `schedule-service` | Spring Boot 3.4.1 | 8082 | blocos de tempo, planos semanais e análises |
 | `notification-service` | Spring Boot 3.4.1 | 8083 | lembretes, notificações e mensagens de suporte |
@@ -60,12 +60,11 @@ com estes nomes:
 | Grupo | Variáveis principais |
 |---|---|
 | Banco e cache | `MYSQL_DATABASE`, `MYSQL_ROOT_PASSWORD`, `SPRING_DATASOURCE_PASSWORD`, `REDIS_PASSWORD` |
-| Autenticação | `JWT_SECRET`, `JWT_ACCESS_EXPIRATION_MS`, `JWT_REFRESH_EXPIRATION_MS`, `TURNSTILE_SECRET_KEY` |
+| Autenticação | `JWT_SECRET`, `JWT_ACCESS_EXPIRATION_MS`, `JWT_REFRESH_EXPIRATION_MS` |
 | Integração | `CORS_ALLOWED_ORIGINS`, `TASK_SERVICE_URL`, `NOTIFICATION_SERVICE_URL`, `INTERNAL_API_TOKEN`, `PUBLIC_TASK_API_URL` |
 | Exportação | `EXPORT_STORAGE_PATH`, `EXPORT_DOWNLOAD_SECRET`, `EXPORT_MAX_RECORDS`, `EXPORT_MAX_FILE_SIZE_BYTES` |
 | E-mail | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `BUG_REPORT_FROM`, `BUG_REPORT_RECIPIENT` |
 | Observabilidade | `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD` |
-| Frontend | `VITE_TURNSTILE_SITE_KEY` |
 
 Não use valores de desenvolvimento como credenciais de produção. Valores reais
 devem ficar em arquivos ignorados, secrets do GitHub ou no ambiente de execução.
@@ -132,7 +131,7 @@ Os gates completos do frontend incluem Vitest, LCP via Playwright, axe-core/Play
 responsividade e proteção do ciclo de sessão. Os relatórios Gradle/JaCoCo e os
 artefatos de qualidade são gerados localmente em diretórios ignorados pelo Git.
 
-Na validação local da migração em 17/09/2026, passaram 415 testes do backend,
+Na validação local da migração em 17/09/2026, passaram 407 testes do backend,
 129 testes do frontend, todos os gates Playwright, o build Vite e
 `docker compose config --quiet`. A auditoria `npm audit` terminou com zero
 vulnerabilidades conhecidas.
@@ -145,7 +144,6 @@ vulnerabilidades conhecidas.
 | `Qualidade Frontend` | push na `main`, pull request ou manual | testes e métricas do frontend |
 | `Deploy Frontend (GitHub Pages)` | mudança em `frontend/` na `main` ou manual | build e publicação do frontend |
 | `Deploy VPS` | sucesso de `Qualidade` na `main` ou manual | pacote, implantação e health check do backend |
-| `Checar TURNSTILE_SECRET_KEY na VPS` | manual | diagnóstico sem revelar o valor |
 
 Um push ou merge na `main` pode produzir efeitos de deploy. Antes de publicar
 uma branch de migração, revise environments, secrets, Pages, proteção de branch

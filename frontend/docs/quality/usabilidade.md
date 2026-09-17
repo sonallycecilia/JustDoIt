@@ -17,7 +17,7 @@ O total da suíte responsiva foi **29/29**. Os três cenários específicos veri
 3. rolar o calendário completo até a legenda sem cortar a grade.
 
 A auditoria procura overflow horizontal, controles cortados e campos invisíveis.
-O cadastro também é coberto em 320 px, incluindo o Turnstile compacto.
+O cadastro também é coberto em 320 px.
 
 ## O que ainda depende de avaliação humana
 

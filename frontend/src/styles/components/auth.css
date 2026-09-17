@@ -39,8 +39,6 @@
 .auth__sub a:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 .auth__form { display: flex; flex-direction: column; gap: var(--space-md); }
-.auth__turnstile { display: flex; width: 100%; min-width: 0; justify-content: center; }
-.auth__turnstile > * { width: 100%; max-width: 100%; }
 
 /* Campo de formulário */
 .field { display: flex; flex-direction: column; gap: 6px; }
