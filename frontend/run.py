@@ -33,11 +33,12 @@ import webbrowser
 # desde que o app foi promovido de react/ para a raiz do repo.
 FRONT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Backend: usa o projeto irmão `JustDoIt`; uma organização diferente pode ser
-# informada pela variável de ambiente JUSTDOIT_BACKEND_DIR.
+# Backend: no monorepo, fica na raiz imediatamente acima de `frontend/`.
+# Uma organização diferente ainda pode ser informada pela variável de ambiente
+# JUSTDOIT_BACKEND_DIR.
 BACKEND_DIR = os.path.abspath(os.environ.get(
     "JUSTDOIT_BACKEND_DIR",
-    os.path.join(FRONT_DIR, "..", "JustDoIt"),
+    os.path.join(FRONT_DIR, ".."),
 ))
 ENV_FILE = os.path.join(BACKEND_DIR, "infra", ".env")
 COMPOSE_FILE = os.path.join(BACKEND_DIR, "infra", "docker-compose.yml")
@@ -82,7 +83,7 @@ def validate_backend():
     if os.path.isfile(settings_file):
         return
     print(f"[ERRO] Não encontrei o repositório backend em:\n  {BACKEND_DIR}")
-    print("Mantenha JustDoIt e justdoit-frontend na mesma pasta ou defina "
+    print("Execute este script dentro de frontend/ no monorepo ou defina "
           "JUSTDOIT_BACKEND_DIR com o caminho absoluto do backend.")
     sys.exit(1)
 
