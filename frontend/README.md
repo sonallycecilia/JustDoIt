@@ -3,8 +3,8 @@
 Interface web do JustDoIt, uma aplicação de produtividade pessoal para tarefas,
 agenda, tempo, notas, ciclos semanais e análises.
 
-> Estado verificado em 20/08/2026 contra `origin/main`, commit `540508f`.
-> Informações externas de deploy e qualidade também foram conferidas no GitHub.
+> Histórico importado da `main` do repositório original até o commit `aa7f77d`.
+> Resultados históricos de deploy e qualidade continuam identificados abaixo.
 
 ## Visão rápida
 
@@ -23,7 +23,7 @@ Principais dependências de runtime:
 ## Estrutura
 
 ```text
-justdoit-frontend/
+frontend/
 ├── docs/                 documentação
 ├── public/               CNAME e arquivos copiados para o build
 ├── scripts/              coleta e geração das métricas de qualidade
@@ -117,10 +117,11 @@ migração planejada estão documentados em
 
 ## Executar localmente
 
-Pré-requisitos: Node 20 ou superior e o backend rodando ao lado.
+Pré-requisitos: Node 20 ou superior e o backend do monorepo em execução.
 
 ```bash
-npm install
+cd frontend
+npm ci
 npm run dev
 ```
 
@@ -141,8 +142,9 @@ Comandos úteis:
 | `npm run quality:session` | 11 cenários do ciclo de sessão |
 | `npm run quality:all` | executa todos os gates e gera relatórios |
 
-`run.py` oferece os comandos `start`, `front` e `back` para orquestração local,
-mas depende de o backend existir na pasta irmã esperada.
+`run.py` oferece os comandos `start`, `front` e `back` para orquestração local e
+localiza o backend na raiz do monorepo. `JUSTDOIT_BACKEND_DIR` permite substituir
+essa raiz.
 
 ## Qualidade verificada
 
@@ -162,9 +164,9 @@ jornada em produção.
 
 ## Deploy
 
-O GitHub Pages está configurado atualmente com `build_type: workflow`. Um push
-na `main` executa `.github/workflows/deploy.yml`, gera `dist/` e publica pelo
-GitHub Actions.
+O GitHub Pages usa um workflow do monorepo. Um push na `main` que altere
+`frontend/` executa `.github/workflows/deploy-pages.yml`, gera `frontend/dist/`
+e publica pelo GitHub Actions.
 
 - URL: `https://justdoit-app.duckdns.org/`
 - `public/CNAME` preserva o domínio próprio.
