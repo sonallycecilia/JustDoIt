@@ -128,12 +128,14 @@ npm run build
 npm run quality:all
 ```
 
-Os gates completos do frontend incluem Vitest, Lighthouse, axe-core/Playwright,
+Os gates completos do frontend incluem Vitest, LCP via Playwright, axe-core/Playwright,
 responsividade e proteção do ciclo de sessão. Os relatórios Gradle/JaCoCo e os
 artefatos de qualidade são gerados localmente em diretórios ignorados pelo Git.
 
 Na validação local da migração em 17/09/2026, passaram 415 testes do backend,
-129 testes do frontend, o build Vite e `docker compose config --quiet`.
+129 testes do frontend, todos os gates Playwright, o build Vite e
+`docker compose config --quiet`. A auditoria `npm audit` terminou com zero
+vulnerabilidades conhecidas.
 
 ## CI/CD
 

@@ -43,7 +43,7 @@ try {
 }
 
 if (reportFiles.length !== EXPECTED_RUNS) {
-  validationErrors.push(`Esperados exatamente ${EXPECTED_RUNS} relatórios LHR; encontrados ${reportFiles.length}.`);
+  validationErrors.push(`Esperados exatamente ${EXPECTED_RUNS} relatórios de LCP; encontrados ${reportFiles.length}.`);
 }
 
 const reports = [];
@@ -61,7 +61,7 @@ for (const file of reportFiles) {
       errors.push(`URL divergente: requested=${requestedUrl}; final=${finalUrl}; esperada=${EXPECTED_URL}`);
     }
     if (!Number.isFinite(lcp)) errors.push('LCP ausente ou inválido.');
-    if (report.runtimeError) errors.push(`Erro do Lighthouse: ${report.runtimeError.message ?? report.runtimeError.code}`);
+    if (report.runtimeError) errors.push(`Erro do coletor: ${report.runtimeError.message ?? report.runtimeError.code}`);
     if (!Number.isFinite(fetchTime) || fetchTime < runStartedAt - 5_000) {
       errors.push(`Relatório anterior ao início da execução (${context.startedAt}).`);
     }
@@ -73,7 +73,7 @@ for (const file of reportFiles) {
       finalUrl,
       fetchTime: report.fetchTime ?? null,
       lcpMs: Number.isFinite(lcp) ? Math.round(lcp) : null,
-      lighthouseVersion: report.lighthouseVersion ?? null,
+      collector: report.collector ?? (report.lighthouseVersion ? `lighthouse-${report.lighthouseVersion}` : null),
       browserUserAgent: report.userAgent ?? report.environment?.hostUserAgent ?? null,
       errors,
     });
@@ -93,7 +93,7 @@ const result = {
   evidence: evidenceMetadata(context, {
     targetUrl: EXPECTED_URL,
     expectedRuns: EXPECTED_RUNS,
-    lighthouseVersions: [...new Set(reports.map((report) => report.lighthouseVersion).filter(Boolean))],
+    collectors: [...new Set(reports.map((report) => report.collector).filter(Boolean))],
     browserUserAgents: [...new Set(reports.map((report) => report.browserUserAgent).filter(Boolean))],
   }),
   samplesMs: [...samples].sort((a, b) => a - b),

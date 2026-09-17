@@ -136,7 +136,7 @@ Comandos úteis:
 | `npm run build` | build de produção em `dist/` |
 | `npm run preview` | serve o build localmente |
 | `npm test` | suíte Vitest |
-| `npm run quality:lcp` | LCP P75 da página inicial |
+| `npm run quality:lcp` | LCP P75 via Playwright na página inicial |
 | `npm run quality:a11y` | axe-core/Playwright nas rotas auditáveis |
 | `npm run quality:responsive` | auditoria em 320 px e 390 px |
 | `npm run quality:session` | 11 cenários do ciclo de sessão |

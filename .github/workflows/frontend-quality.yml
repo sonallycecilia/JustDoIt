@@ -20,7 +20,7 @@ jobs:
     env:
       QUALITY_COMMIT: ${{ github.sha }}
       QUALITY_RUN_ID: github-actions-${{ github.run_id }}-${{ github.run_attempt }}
-      QUALITY_ENVIRONMENT: GitHub Actions / ubuntu-latest / Node 22.22.2 / Lighthouse desktop local
+      QUALITY_ENVIRONMENT: GitHub Actions / ubuntu-latest / Node 22.22.2 / Playwright Chromium local
     steps:
       - uses: actions/checkout@v4
 

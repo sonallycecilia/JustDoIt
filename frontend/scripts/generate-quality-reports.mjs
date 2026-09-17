@@ -104,7 +104,7 @@ ${header}
 |---|---|---:|---|---:|---:|
 | LCP no percentil 75 | ${lcpStatus} | ${lcp ? `${lcp.samplesMs.length}/${lcp.evidence.expectedRuns}` : '0/4'} execuções válidas | ${lcpSamples} ms | ${lcpValue} | ${lcpLimit} |
 
-O P75 usa nearest rank: posição \`ceil(0,75 × N)\` das amostras ordenadas. O gate exige exatamente quatro relatórios da URL configurada, gerados depois do início desta execução. A coleta usa build de produção, Lighthouse desktop e somente a página inicial servida localmente.
+O P75 usa nearest rank: posição \`ceil(0,75 × N)\` das amostras ordenadas. O gate exige exatamente quatro relatórios da URL configurada, gerados depois do início desta execução. A coleta usa o build de produção e a API PerformanceObserver do Chromium controlado pelo Playwright, somente na página inicial servida localmente.
 `, 'utf8');
 
 await writeFile(resolve(outputDir, 'correcao-funcional.md'), `# Correção funcional
