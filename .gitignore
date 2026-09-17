@@ -9,14 +9,16 @@ bin/
 .idea/
 .vscode/
 .claude/
-docs/
-!docs/
-docs/*
-!docs/quality/
-!docs/quality/*.md
-!docs/deploy-vps.md
-!docs/arquitetura.md
-!docs/observabilidade.md
+
+# A documentação versionada do backend é uma seleção dos arquivos em docs/.
+backend/docs/
+!backend/docs/
+backend/docs/*
+!backend/docs/quality/
+!backend/docs/quality/*.md
+!backend/docs/deploy-vps.md
+!backend/docs/arquitetura.md
+!backend/docs/observabilidade.md
 
 # Segredos / variaveis de ambiente (NUNCA commitar)
 .env

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// O CORS do backend (services/*/application.yml) só permite http://localhost:3000,
+// O CORS do backend (backend/services/*/application.yml) só permite http://localhost:3000,
 // então a porta é fixa: se 3000 estiver ocupada é melhor falhar do que subir em
 // outra porta e ver toda requisição bloqueada.
 //

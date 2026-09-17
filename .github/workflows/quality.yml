@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    working-directory: backend
+
 jobs:
   metricas-backend:
     runs-on: ubuntu-latest
@@ -73,12 +77,12 @@ jobs:
           name: qualidade-backend-${{ github.sha }}
           if-no-files-found: error
           path: |
-            docs/quality/*.md
-            quality-reports/**
-            quality-test.log
-            **/build/test-results/test/**
-            **/build/reports/tests/test/**
-            **/build/reports/jacoco/test/**
+            backend/docs/quality/*.md
+            backend/quality-reports/**
+            backend/quality-test.log
+            backend/**/build/test-results/test/**
+            backend/**/build/reports/tests/test/**
+            backend/**/build/reports/jacoco/test/**
 
       - name: Aplicar gate dos testes
         if: always() && (steps.tests.outcome != 'success' || steps.reports.outcome != 'success')

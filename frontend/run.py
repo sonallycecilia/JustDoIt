@@ -14,31 +14,23 @@ Observação: o backend só aceita CORS de http://localhost:3000, por isso o fro
 5500) — as requisições seriam bloqueadas pelo CORS e o app nem chega a carregar
 (o Live Server não compila JSX, dá 404 em main.jsx).
 
-Nota (2026-07): o refactor da arquitetura do backend removeu o antigo
-docs/automações/local.py. Agora a infra sobe via docker-compose e cada serviço
-via ./gradlew :services:<svc>:bootRun — este script orquestra os dois.
-
-Nota (2026-07-21): o app vanilla da raiz foi aposentado — o front agora é só o
-app React (Vite). Os comandos `start-react`/`react` viraram `start`/`front`.
-
-Nota (2026-07-22): o app React saiu de react/ e virou a raiz do repo, então este
-script roda o `npm run dev` no próprio diretório dele. Ver CLAUDE.md.
+No monorepo, frontend e backend são diretórios irmãos. A infra sobe via
+Docker Compose e cada serviço via Gradle; este script orquestra os dois.
 """
 import os
 import sys
 import subprocess
 import webbrowser
 
-# Raiz do frontend (onde este script está) — é também a raiz do app React/Vite,
-# desde que o app foi promovido de react/ para a raiz do repo.
+# Raiz do frontend (onde este script está).
 FRONT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Backend: no monorepo, fica na raiz imediatamente acima de `frontend/`.
+# Backend: no monorepo, fica em `backend/`, ao lado de `frontend/`.
 # Uma organização diferente ainda pode ser informada pela variável de ambiente
 # JUSTDOIT_BACKEND_DIR.
 BACKEND_DIR = os.path.abspath(os.environ.get(
     "JUSTDOIT_BACKEND_DIR",
-    os.path.join(FRONT_DIR, ".."),
+    os.path.join(FRONT_DIR, "..", "backend"),
 ))
 ENV_FILE = os.path.join(BACKEND_DIR, "infra", ".env")
 COMPOSE_FILE = os.path.join(BACKEND_DIR, "infra", "docker-compose.yml")
@@ -78,7 +70,7 @@ def validate_backend():
     if os.path.isfile(settings_file):
         return
     print(f"[ERRO] Não encontrei o repositório backend em:\n  {BACKEND_DIR}")
-    print("Execute este script dentro de frontend/ no monorepo ou defina "
+    print("Mantenha backend/ e frontend/ lado a lado ou defina "
           "JUSTDOIT_BACKEND_DIR com o caminho absoluto do backend.")
     sys.exit(1)
 

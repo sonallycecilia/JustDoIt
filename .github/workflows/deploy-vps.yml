@@ -14,6 +14,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    working-directory: backend
+
 concurrency:
   group: production-vps
   cancel-in-progress: false
@@ -74,8 +78,8 @@ jobs:
           retention-days: 14
           if-no-files-found: error
           path: |
-            ${{ steps.release.outputs.archive }}
-            ${{ steps.release.outputs.archive }}.sha256
+            backend/${{ steps.release.outputs.archive }}
+            backend/${{ steps.release.outputs.archive }}.sha256
 
       - name: Configurar acesso SSH
         shell: bash
