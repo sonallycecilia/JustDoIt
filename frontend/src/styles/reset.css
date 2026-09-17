@@ -1,0 +1,82 @@
+/* ============================================================
+   JustDoIt — reset.css
+   Reset/normalize enxuto e moderno. Base previsível para tudo.
+   ============================================================ */
+
+/* Box model consistente */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Zera margens padrão */
+* { margin: 0; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+body {
+  min-height: 100vh;
+  line-height: var(--leading-normal, 1.5);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mídia em bloco e responsiva por padrão */
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Herança de fonte nos controles de formulário */
+input, button, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Quebra de palavras longas */
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+
+/* Remove estilos de lista quando usada como navegação */
+ul[role="list"], ol[role="list"] {
+  list-style: none;
+  padding: 0;
+}
+
+/* Links herdam cor por padrão; estilizados no global/components */
+a { color: inherit; text-decoration: none; }
+
+/* Botões sem aparência nativa */
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+/* Tabelas */
+table { border-collapse: collapse; border-spacing: 0; }
+
+/* Acessibilidade: respeita quem prefere menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Alvo de foco visível e consistente (teclado) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 3px rgba(26,107,104,.35));
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* Inputs e textareas usam border-color para indicar foco — sem anel interno */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: none;
+  border-color: var(--brand-sage);
+}

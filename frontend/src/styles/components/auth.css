@@ -1,0 +1,140 @@
+/* ============================================================
+   JustDoIt — auth.css
+   Tela de entrada (login) em split-screen: painel da marca à
+   esquerda (degradê evergreen) + formulário à direita.
+   ============================================================ */
+
+.auth { display: flex; min-height: 100vh; }
+
+/* ---------- Painel da marca (esquerda) ---------- */
+.auth__aside {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-xl);
+  color: var(--color-text-on-dark);
+  background: linear-gradient(150deg, #013a3a 0%, var(--brand-pine) 55%, #001517 100%);
+  overflow: hidden;
+}
+.auth__brand { display: flex; align-items: center; gap: 10px; position: relative; z-index: 2; }
+.auth__mark { color: #6aa9a4; display: flex; }
+.auth__word { font-family: var(--font-display); font-size: var(--font-size-xl); font-weight: var(--weight-medium); letter-spacing: -0.01em; color: var(--brand-paper); }
+.auth__quote { position: relative; z-index: 2; max-width: 30ch; }
+.auth__quote h2 { color: var(--brand-paper); font-size: var(--font-size-2xl); line-height: 1.18; margin-bottom: var(--space-md); }
+.auth__quote h2 em { font-style: italic; color: #6aa9a4; }
+.auth__quote p { color: #a3cac6; line-height: var(--leading-relaxed); }
+.auth__bottom { display: flex; align-items: flex-end; justify-content: space-between; position: relative; z-index: 2; }
+.auth__foot { font-family: var(--font-mono); font-size: var(--font-size-xs); letter-spacing: 0.14em; text-transform: uppercase; color: #6aa9a4; }
+
+/* ---------- Painel do formulário (direita) ---------- */
+.auth__main { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--space-xl) var(--space-lg); }
+.auth__card { width: 100%; max-width: 380px; }
+.auth__head { margin-bottom: var(--space-lg); }
+.auth__eyebrow { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: var(--space-sm); }
+.auth__title { font-size: var(--font-size-2xl); margin-bottom: var(--space-xs); }
+.auth__sub { font-size: var(--font-size-md); color: var(--color-text-soft); }
+.auth__sub a { color: var(--color-accent); font-weight: var(--weight-semibold); cursor: pointer; }
+.auth__sub a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+.auth__form { display: flex; flex-direction: column; gap: var(--space-md); }
+
+/* Campo de formulário */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field__label { font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text-soft); }
+.field__control {
+  display: flex; align-items: center; gap: 9px;
+  height: 44px; padding: 0 13px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.field__control:hover { border-color: var(--color-accent); }
+.field__control svg { width: 18px; height: 18px; color: var(--color-text-muted); flex: none; }
+.field__control input { flex: 1; min-width: 0; width: 100%; border: 0; outline: 0; background: transparent; font-size: var(--font-size-md); color: var(--color-text); }
+.field__control input::placeholder { color: var(--color-text-faint); }
+
+/* Linha lembrar / esqueci */
+.auth__rowend { display: flex; align-items: center; justify-content: space-between; }
+.checkline { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--font-size-sm); color: var(--color-text-soft); user-select: none; }
+.checkline input { width: 18px; height: 18px; accent-color: var(--color-accent); cursor: pointer; }
+.auth__forgot { font-size: var(--font-size-sm); color: var(--color-accent); cursor: pointer; }
+.auth__forgot:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Divisor + social */
+.auth__divider { display: flex; align-items: center; gap: 14px; color: var(--color-text-faint); font-size: var(--font-size-sm); margin: var(--space-lg) 0; }
+.auth__divider::before, .auth__divider::after { content: ''; flex: 1; height: 1px; background: var(--color-border-strong); }
+.auth__sso { display: flex; align-items: center; justify-content: center; gap: 10px; height: 44px; width: 100%; background: var(--color-card); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-card); font-weight: var(--weight-semibold); color: var(--color-text); cursor: pointer; transition: background var(--duration-fast), border-color var(--duration-fast); }
+.auth__sso:hover { background: var(--color-surface-sunken); border-color: var(--color-border-strong); }
+.auth__sso svg { width: 18px; height: 18px; }
+
+.auth__legal { font-size: var(--font-size-xs); color: var(--color-text-muted); text-align: center; line-height: 1.5; margin-top: var(--space-lg); }
+.auth__legal a { color: var(--color-text-soft); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+/* Botão de tema flutuante */
+.auth__theme { position: fixed; top: var(--space-md); right: var(--space-md); z-index: 10; }
+
+/* ---------- Variante: formulário longo (cadastro) ---------- */
+.auth--signup .auth__aside { position: sticky; top: 0; height: 100vh; }
+.auth--signup .auth__main  { align-items: flex-start; overflow-y: auto; max-height: 100vh; padding-block: var(--space-2xl); }
+
+/* Lista de benefícios no painel da marca */
+.auth__checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-sm); position: relative; z-index: 2; }
+.auth__checklist li { display: flex; align-items: center; gap: 10px; font-size: var(--font-size-sm); color: #a3cac6; }
+.auth__checklist svg { width: 16px; height: 16px; color: #6aa9a4; flex: none; }
+
+/* Botão olho dentro do campo de senha */
+.field__eye {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  color: var(--color-text-muted); cursor: pointer; flex: none;
+  transition: color var(--duration-fast);
+}
+.field__eye:hover { color: var(--color-text-soft); }
+.field__eye svg   { width: 16px; height: 16px; }
+
+/* Mensagem de erro inline */
+.field__error { font-size: var(--font-size-xs); color: var(--color-danger); padding-top: 2px; }
+.field__error--muted { color: var(--color-text-muted); }
+.field__error--ok    { color: var(--color-success); }
+
+/* Modal de termos legais: ver styles/components/legal-modal.css (componente compartilhado). */
+
+/* Cards de perfil de uso */
+.profile-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.profile-card {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 14px 8px; border-radius: var(--radius-md); text-align: center;
+  border: 1px solid var(--color-border-strong); background: var(--color-card);
+  cursor: pointer; transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.profile-card input { position: absolute; opacity: 0; width: 0; height: 0; }
+.profile-card:has(input:checked) { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.profile-card__ic {
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken); color: var(--color-text-muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.profile-card:has(input:checked) .profile-card__ic { background: var(--color-accent-soft); color: var(--color-accent); }
+.profile-card__ic svg  { width: 18px; height: 18px; }
+.profile-card__label   { font-size: var(--font-size-sm); font-weight: var(--weight-semibold); color: var(--color-text); }
+.profile-card__desc    { font-size: var(--font-size-xs); color: var(--color-text-muted); line-height: 1.3; }
+
+/* ---------- Responsivo: esconde a marca em telas estreitas ---------- */
+@media (max-width: 820px) {
+  .auth__aside { display: none; }
+  .auth--signup .auth__main { max-height: none; overflow-y: visible; align-items: center; }
+}
+
+@media (max-width: 420px) {
+  .auth__main,
+  .auth--signup .auth__main { padding: var(--space-xl) var(--space-md); }
+  .auth__card { min-width: 0; }
+  .auth__title { font-size: var(--font-size-xl); }
+  .auth__rowend { align-items: flex-start; gap: var(--space-sm); flex-wrap: wrap; }
+  .profile-cards { grid-template-columns: 1fr; }
+}

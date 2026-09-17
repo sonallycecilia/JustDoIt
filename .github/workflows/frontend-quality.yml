@@ -1,0 +1,87 @@
+name: Qualidade Frontend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  metricas-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      QUALITY_COMMIT: ${{ github.sha }}
+      QUALITY_RUN_ID: github-actions-${{ github.run_id }}-${{ github.run_attempt }}
+      QUALITY_ENVIRONMENT: GitHub Actions / ubuntu-latest / Node 22.22.2 / Playwright Chromium local
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Preparar execução e limpar evidências anteriores
+        run: npm run quality:prepare
+
+      - name: Executar testes
+        id: tests
+        continue-on-error: true
+        run: |
+          mkdir -p quality-reports
+          npm test -- --reporter=junit --outputFile=quality-reports/vitest-junit.xml
+
+      - name: Executar LCP P75
+        id: lcp
+        continue-on-error: true
+        run: npm run quality:lcp:run
+
+      - name: Executar métrica de acessibilidade
+        id: accessibility
+        continue-on-error: true
+        run: npm run quality:a11y:run
+
+      - name: Executar gate de responsividade móvel
+        id: responsive
+        continue-on-error: true
+        run: npm run quality:responsive:run
+
+      - name: Executar métrica de proteção do ciclo de sessão
+        id: session
+        continue-on-error: true
+        run: npm run quality:session:run
+
+      - name: Gerar relatórios por atributo
+        if: always()
+        run: npm run quality:report
+
+      - name: Publicar relatórios e evidências
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualidade-frontend-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            frontend/docs/quality/*.md
+            frontend/quality-reports/**
+            frontend/.lighthouseci/*.json
+            frontend/playwright-report/**
+            frontend/test-results/**
+
+      - name: Aplicar gates
+        if: always() && (steps.tests.outcome != 'success' || steps.lcp.outcome != 'success' || steps.accessibility.outcome != 'success' || steps.responsive.outcome != 'success' || steps.session.outcome != 'success')
+        run: |
+          echo 'Testes, LCP P75, acessibilidade, responsividade móvel ou TPS de sessão falharam.' >&2
+          exit 1

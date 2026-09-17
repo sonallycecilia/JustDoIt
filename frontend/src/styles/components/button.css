@@ -1,0 +1,80 @@
+/* ============================================================
+   JustDoIt — button.css
+   Botão reutilizável. Aplique .btn + uma variante + um tamanho.
+   Ex.: <button class="btn btn--primary btn--lg">Entrar</button>
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  font-family: var(--font-body);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              box-shadow var(--duration-fast) var(--ease-standard);
+}
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Tamanhos */
+.btn--sm { height: 32px; padding: 0 12px; font-size: var(--font-size-sm); }
+.btn--md { height: 40px; padding: 0 18px; font-size: var(--font-size-md); }
+.btn--lg { height: 48px; padding: 0 24px; font-size: var(--font-size-md); }
+.btn--full { width: 100%; }
+
+/* Variantes */
+.btn--primary { background: var(--color-accent); color: var(--color-text-on-dark); }
+.btn--primary:hover { background: var(--color-accent-hover); }
+.btn--primary:active { background: var(--color-accent-active); }
+
+.btn--secondary {
+  background: var(--color-card);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-card);
+}
+.btn--secondary:hover { background: var(--color-surface-sunken); }
+
+.btn--ghost { background: transparent; color: var(--color-accent); }
+.btn--ghost:hover { background: var(--color-accent-soft); }
+
+.btn--danger { background: var(--color-danger); color: #fff; }
+.btn--danger:hover { filter: brightness(0.94); }
+
+/* Estado desabilitado */
+.btn:disabled, .btn[aria-disabled="true"] {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-faint);
+  border-color: transparent;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn svg { width: 1.15em; height: 1.15em; flex: none; }
+
+/* Botão de ícone quadrado */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  flex: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-card);
+  color: var(--color-text-soft);
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+.btn-icon:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.btn-icon:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-icon svg { width: 18px; height: 18px; }

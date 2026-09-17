@@ -1,0 +1,62 @@
+/* ============================================================
+   JustDoIt — legal-modal.css
+   Modal de Termos de Uso / Política de Privacidade.
+   Componente compartilhado (landing, login e cadastro).
+   Markup e conteúdo injetados por scripts/features/auth/legal.js.
+   ============================================================ */
+.legal-modal { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; }
+.legal-modal[hidden] { display: none; }
+.legal-modal__backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, .5);
+  animation: legalModalFade var(--duration-fast) ease;
+}
+.legal-modal__card {
+  position: relative;
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(82vh, 720px);
+  display: flex; flex-direction: column;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  animation: legalModalRise var(--duration-fast) ease;
+  overflow: hidden;
+}
+.legal-modal__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+.legal-modal__title { font-size: var(--font-size-lg); font-weight: var(--weight-semibold); color: var(--color-text); }
+.legal-modal__close {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  display: grid; place-items: center; border: none; background: none;
+  color: var(--color-text-muted); cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.legal-modal__close:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.legal-modal__close svg { width: 18px; height: 18px; }
+.legal-modal__body {
+  padding: var(--space-lg);
+  overflow-y: auto;
+  font-size: var(--font-size-sm); line-height: 1.6;
+  color: var(--color-text-muted);
+}
+.legal-modal__body h3 {
+  font-size: var(--font-size-sm); font-weight: var(--weight-semibold);
+  color: var(--color-text); margin: var(--space-md) 0 4px;
+}
+.legal-modal__body h3:first-child { margin-top: 0; }
+.legal-modal__body p  { margin: 0 0 8px; }
+.legal-modal__body ul { margin: 0 0 8px; padding-left: 18px; }
+.legal-modal__body li { margin-bottom: 4px; }
+.legal-modal__updated { font-size: var(--font-size-xs); color: var(--color-text-faint); margin-bottom: var(--space-md); }
+.legal-modal__foot {
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  display: flex; justify-content: flex-end;
+}
+
+@keyframes legalModalFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes legalModalRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

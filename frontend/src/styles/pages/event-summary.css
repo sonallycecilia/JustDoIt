@@ -1,0 +1,36 @@
+/* ============================================================
+   JustDoIt — event-summary.css
+   Conteúdo do drawer lateral do calendário.
+
+   O corpo do drawer é o <TaskEditor compacto />, então quase todo
+   o visual vem do task-detail.css. O que sobra aqui é só a casca:
+   topbar, chip do horário do bloco e o card de "sem tarefa".
+   ============================================================ */
+
+/* O drawer é redimensionável (380–900px) — nada de max-width aqui,
+   senão o conteúdo para de acompanhar o arrasto da borda. */
+.evsum {
+  padding: var(--space-lg) var(--space-md);
+  display: flex; flex-direction: column; gap: var(--space-lg);
+}
+
+/* Topbar: chip do horário do bloco à esquerda, ações à direita */
+.evsum__topbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
+.evsum__topbar-actions { display: flex; align-items: center; gap: var(--space-sm); flex: none; }
+
+.evsum__chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px 4px 8px; border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken); border: 1px solid var(--color-border);
+  font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--color-text-soft);
+}
+.evsum__chip svg { width: 13px; height: 13px; opacity: .7; }
+
+/* Card do estado "bloco sem tarefa vinculada" */
+.evsum__card { display: flex; flex-direction: column; gap: var(--space-lg); padding: var(--space-lg); }
+.evsum__section { display: flex; flex-direction: column; gap: var(--space-sm); }
+.evsum__section-head {
+  font-size: var(--font-size-xs); font-family: var(--font-mono);
+  text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted);
+}
+.evsum__section-text { font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 0; }

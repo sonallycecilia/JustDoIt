@@ -1,0 +1,39 @@
+/* ============================================================
+   JustDoIt — badge.css
+   Pílulas de status, prioridade e categoria.
+   ============================================================ */
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 9px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs); font-weight: var(--weight-semibold);
+  letter-spacing: .02em; line-height: 1; white-space: nowrap;
+}
+.badge__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge svg { width: 12px; height: 12px; }
+
+/* Status */
+.badge--neutral { background: var(--color-surface-sunken); color: var(--color-text-soft); }
+.badge--success { background: var(--color-priority-normal-soft); color: var(--color-success); }
+.badge--warning { background: var(--color-priority-important-soft); color: var(--color-warning); }
+.badge--danger  { background: var(--color-priority-urgent-soft); color: var(--color-danger); }
+.badge--info    { background: var(--color-accent-soft); color: var(--color-accent); }
+
+/* Prioridades (RF11) */
+.badge--urgent    { background: var(--color-priority-urgent-soft); color: var(--color-priority-urgent); }
+.badge--important { background: var(--color-priority-important-soft); color: var(--color-priority-important); }
+.badge--normal    { background: var(--color-priority-normal-soft); color: var(--color-priority-normal); }
+.badge--low       { background: var(--color-priority-low-soft); color: var(--color-priority-low); }
+
+/* Chip de categoria (com ponto colorido custom via style) */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  border: 1px solid var(--color-border-strong);
+  font-size: var(--font-size-sm); font-weight: var(--weight-medium);
+  color: var(--color-text-soft); white-space: nowrap;
+}
+.chip__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--brand-sage); }

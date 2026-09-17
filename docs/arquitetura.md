@@ -48,7 +48,7 @@ validações reutilizadas, como texto seguro e senha forte. Somente o
 
 Responsável por:
 
-- cadastro e login protegidos por Cloudflare Turnstile;
+- cadastro e login com validação de entrada e rate limit em memória;
 - consulta de disponibilidade de e-mail;
 - emissão de access token JWT HS256;
 - refresh token opaco, persistido no servidor somente como hash;
@@ -144,7 +144,6 @@ Limitações que permanecem:
 - tokens no Web Storage continuam expostos a JavaScript executado na origem;
 - JWT simétrico amplia o impacto do vazamento do segredo compartilhado;
 - rate limit em memória e jobs locais não coordenam múltiplas réplicas;
-- o valor padrão do Turnstile não deve ser usado como segredo de produção;
 - `show-sql` está habilitado nos quatro serviços e deve ser desligado em produção.
 
 ## 5. Persistência
@@ -171,7 +170,6 @@ deploy, bloqueia novas duplicidades.
 
 | Origem | Destino | Finalidade | Política atual |
 |---|---|---|---|
-| auth | Cloudflare | validar Turnstile | chamada síncrona |
 | auth | task | apagar dados da conta | síncrona dentro do fluxo de exclusão |
 | schedule | task | obter relatório semanal | timeout e resumo parcial em falha |
 | task | notification | criar notificações internas | HTTP ou eventos locais, conforme o fluxo |
@@ -215,10 +213,9 @@ Limitações de teste conhecidas:
 
 ## 9. Riscos e próximos passos realistas
 
-1. Remover o segredo padrão do Turnstile e exigir configuração por ambiente.
-2. Incluir schedule, notification e support na exclusão verificável da conta.
-3. Proteger Prometheus por rede e desligar SQL em produção.
-4. Adicionar timeout explícito à integração auth → task.
-5. Coordenar jobs e rate limit antes de escalar horizontalmente.
-6. Separar credenciais ou schemas por serviço.
-7. Adicionar Testcontainers MySQL e testes de contrato entre serviços.
+1. Incluir schedule, notification e support na exclusão verificável da conta.
+2. Proteger Prometheus por rede e desligar SQL em produção.
+3. Adicionar timeout explícito à integração auth → task.
+4. Coordenar jobs e rate limit antes de escalar horizontalmente.
+5. Separar credenciais ou schemas por serviço.
+6. Adicionar Testcontainers MySQL e testes de contrato entre serviços.

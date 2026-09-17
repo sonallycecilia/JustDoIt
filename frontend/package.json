@@ -1,0 +1,48 @@
+{
+  "name": "justdoit-react",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "quality:prepare": "node scripts/prepare-quality-run.mjs",
+    "quality:lcp:run": "node scripts/run-lcp-quality.mjs",
+    "quality:lcp": "npm run quality:prepare && npm run quality:lcp:run",
+    "quality:a11y:run": "npm run build && playwright test tests/accessibility.spec.js",
+    "quality:a11y": "npm run quality:prepare && npm run quality:a11y:run",
+    "quality:responsive:run": "npm run build && playwright test tests/responsive.spec.js",
+    "quality:responsive": "npm run quality:prepare && npm run quality:responsive:run",
+    "quality:session:run": "node scripts/run-session-quality.mjs",
+    "quality:session": "npm run quality:prepare && npm run quality:session:run",
+    "quality:all": "npm run quality:prepare && npm test -- --reporter=junit --outputFile=quality-reports/vitest-junit.xml && npm run quality:lcp:run && npm run quality:a11y:run && npm run quality:responsive:run && npm run quality:session:run && npm run quality:report",
+    "quality:report": "node scripts/generate-quality-reports.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-color": "^3.31.3",
+    "@tiptap/extension-placeholder": "^3.31.3",
+    "@tiptap/extension-text-style": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.4",
+    "react-window": "^2.3.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^30.0.0",
+    "playwright": "^1.62.1",
+    "vite": "^6.0.3",
+    "vitest": "^5.0.1"
+  }
+}

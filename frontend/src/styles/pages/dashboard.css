@@ -1,0 +1,63 @@
+/* ============================================================
+   JustDoIt — dashboard.css
+   Estilos específicos da home semanal.
+   ============================================================ */
+
+
+/* Grade de estatísticas */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-md); }
+.stats-grid .stat--wide { grid-column: span 2; }
+
+/* Lista de tarefas do dia */
+.tasklist { display: flex; flex-direction: column; }
+.task {
+  display: flex; align-items: center; gap: var(--space-md);
+  padding: 13px var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+.task:last-child { border-bottom: 0; }
+.task__check {
+  width: 22px; height: 22px; flex: none;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  cursor: pointer; background: var(--color-card);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.task__check svg { width: 13px; height: 13px; color: #fff; opacity: 0; transition: opacity var(--duration-fast); }
+.task__check:hover { border-color: var(--color-accent); }
+.task.is-done .task__check { background: var(--color-success); border-color: var(--color-success); }
+.task.is-done .task__check svg { opacity: 1; }
+.task__main { flex: 1; min-width: 0; }
+.task__title { font-size: var(--font-size-md); color: var(--color-text); }
+.task.is-done .task__title { color: var(--color-text-muted); text-decoration: line-through; text-decoration-color: var(--color-border-strong); }
+.task__meta { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
+.task__cat { display: inline-flex; align-items: center; gap: 5px; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.task__cat-dot { width: 7px; height: 7px; border-radius: 50%; }
+.task__time { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--color-text-faint); }
+.task__est { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--color-text-faint); white-space: nowrap; }
+.task__right { display: flex; align-items: center; gap: var(--space-sm); flex: none; }
+
+/* Botão de excluir tarefa (após a prioridade) */
+.task__del {
+  display: grid; place-items: center; flex: none;
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--color-text-faint);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.task__del svg { width: 15px; height: 15px; }
+.task__del:hover { background: var(--color-surface-sunken); color: var(--color-danger); }
+.task__del:disabled { opacity: .5; pointer-events: none; }
+
+/* Atalhos */
+.shortcut-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-md); }
+
+@media (max-width: 880px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .shortcut-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .stats-grid, .shortcut-grid { grid-template-columns: 1fr; }
+  .stats-grid .stat--wide { grid-column: span 1; }
+}
