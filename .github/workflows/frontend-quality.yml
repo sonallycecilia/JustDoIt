@@ -1,4 +1,4 @@
-name: Qualidade
+name: Qualidade Frontend
 
 on:
   push:
@@ -8,6 +8,10 @@ on:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    working-directory: frontend
 
 jobs:
   metricas-frontend:
@@ -19,10 +23,13 @@ jobs:
       QUALITY_ENVIRONMENT: GitHub Actions / ubuntu-latest / Node 22.22.2 / Lighthouse desktop local
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22.22.2
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - run: npm ci
       - run: npx playwright install --with-deps chromium
 
@@ -67,11 +74,11 @@ jobs:
           name: qualidade-frontend-${{ github.sha }}
           if-no-files-found: error
           path: |
-            docs/quality/*.md
-            quality-reports/**
-            .lighthouseci/*.json
-            playwright-report/**
-            test-results/**
+            frontend/docs/quality/*.md
+            frontend/quality-reports/**
+            frontend/.lighthouseci/*.json
+            frontend/playwright-report/**
+            frontend/test-results/**
 
       - name: Aplicar gates
         if: always() && (steps.tests.outcome != 'success' || steps.lcp.outcome != 'success' || steps.accessibility.outcome != 'success' || steps.responsive.outcome != 'success' || steps.session.outcome != 'success')
