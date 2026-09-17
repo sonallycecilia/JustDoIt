@@ -1,0 +1,103 @@
+/* JustDoIt — home dividida: landing à esquerda, login à direita.
+   Arquivo EXCLUSIVO do app React: a landing antiga ocupava a página inteira.
+   Reaproveita as classes .mkt-* de landing.css e só ajusta o que muda ao
+   viver em meia tela. */
+
+.home { display: flex; min-height: 100vh; }
+
+/* Painel esquerdo: a landing, com rolagem própria.
+   Coluna flex para que o rodapé desça até a base mesmo quando o conteúdo é
+   mais curto que a tela — sem isso ele fica flutuando no meio do painel. */
+.home__landing {
+  flex: 1;
+  min-width: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  /* Respiro vertical único entre as seções da landing. */
+  --gap-y: clamp(28px, 4.5vh, 52px);
+}
+.home__landing .mkt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.home__landing .mkt-foot { margin-top: auto; }
+
+/* Painel direito: o login, fixo e sempre visível. */
+.home__auth {
+  flex: none;
+  width: clamp(400px, 36vw, 660px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-lg);
+  border-left: 1px solid var(--color-border);
+  background: var(--color-card);
+}
+/* O .auth__card é limitado a 380px (regra compartilhada com o Signup). Aqui ele
+   acompanha o painel mais largo, senão sobraria vazio dentro do próprio login. */
+.home__auth .auth__card { max-width: 460px; }
+
+/* O wrap da landing é centralizado e limitado a 1120px, o que deixaria a marca
+   e os links flutuando longe das bordas dentro do painel. Aqui ele ocupa a
+   largura toda: marca colada à esquerda, tema/links colados à direita. */
+.home__landing .mkt__wrap {
+  max-width: none;
+  margin: 0;
+  padding-inline: clamp(16px, 2.5vw, 32px);
+}
+
+/* padding-block (e não o atalho `padding`) para não zerar o padding-inline
+   herdado de .mkt__wrap — era o que fazia o hero encostar na borda enquanto
+   nav e rodapé respeitavam o recuo.
+
+   O hero é quem cresce (flex: 1) e centra o próprio conteúdo: assim a folga
+   vertical sobrando vai para o miolo da página em vez de virar um vão morto
+   acima do rodapé, e os respiros entre as seções ficam todos em --gap-y. */
+.home__landing .mkt-hero {
+  grid-template-columns: 1fr;
+  gap: clamp(24px, 4vw, 40px);
+  flex: 1;
+  align-content: center;
+  padding-block: var(--gap-y);
+}
+.home__landing .mkt-hero h1 { font-size: clamp(2rem, 4.4vw, var(--font-size-5xl)); }
+.home__landing .mkt-hero__sub { font-size: var(--font-size-md); }
+.home__landing .mkt-features { padding-block: 0 var(--gap-y); }
+.home__landing .mkt-grid3 {
+  /* Quantas colunas couberem, sem nunca espremer abaixo de 220px. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.home__landing .mkt-feat { padding: 20px; }
+.home__landing .mkt-feat__ic { width: 38px; height: 38px; margin-bottom: 12px; }
+.home__landing .mkt-feat h3 { font-size: var(--font-size-lg); }
+
+/* Nav e rodapé podem quebrar em telas estreitas sem estourar a linha. */
+.home__landing .mkt-nav__in { gap: 16px; flex-wrap: wrap; height: auto; padding-block: 14px; }
+.home__landing .mkt-nav__links { gap: clamp(14px, 2vw, 28px); }
+.home__landing .mkt-foot__in { gap: 16px; }
+
+/* Empilha quando não cabe lado a lado: landing em cima, login embaixo. */
+@media (max-width: 1080px) {
+  .home { flex-direction: column; }
+  .home__landing { max-height: none; overflow: visible; }
+  .home__auth {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* Telas largas: a vitrine volta para o lado do texto do hero.
+   A coluna do texto fica menor que a da vitrine de propósito — o parágrafo é
+   limitado a 46ch, então uma coluna larga só geraria vão morto no meio. */
+@media (min-width: 1500px) {
+  .home__landing .mkt-hero {
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr);
+    align-items: center;
+  }
+}

@@ -1,0 +1,553 @@
+/* ============================================================
+   JustDoIt — calendar.css
+   Calendário (React island). Grade semanal com blocos de tempo,
+   alternância dia/semana/mês, cor por categoria + prioridade.
+   ============================================================ */
+
+.app__main--calendar { overflow: hidden; }
+.cal-wrap { display: flex; flex-direction: column; height: 100vh; }
+
+/* Topbar */
+.cal-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-lg) var(--space-xl); border-bottom: 1px solid var(--color-border); flex: none; }
+.cal-top__left { display: flex; align-items: center; gap: var(--space-lg); }
+.cal-top__title { font-family: var(--font-display); font-size: var(--font-size-2xl); font-weight: var(--weight-medium); }
+.cal-top__nav { display: flex; align-items: center; gap: var(--space-sm); }
+.cal-top__range { font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--color-text-soft); min-width: 116px; text-align: center; }
+.cal-top__right { display: flex; align-items: center; gap: var(--space-md); }
+
+/* Segmented dia/semana/mês */
+.cal-seg { display: inline-flex; padding: 3px; background: var(--color-surface-sunken); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.cal-seg button { appearance: none; border: 0; background: transparent; cursor: pointer; font-family: var(--font-body); font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text-muted); padding: 6px 14px; border-radius: 7px; transition: background var(--duration-fast), color var(--duration-fast); }
+.cal-seg button.is-active { background: var(--color-card); color: var(--color-text); box-shadow: var(--shadow-card); }
+
+/* Scroll area */
+.cal-scroll { flex: 1; overflow: auto; }
+
+/* ---------- Grade semanal ---------- */
+.cal-grid { --time-w: 64px; --row-h: 56px; min-width: 880px; }
+.cal-stickytop { position: sticky; top: 0; z-index: 5; background: var(--color-surface); }
+.cal-head { display: grid; grid-template-columns: var(--time-w) repeat(var(--cols, 7), 1fr); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+
+/* Faixa "Sem horário" (all-day) */
+.cal-allday { display: grid; grid-template-columns: var(--time-w) repeat(var(--cols, 7), 1fr); background: var(--color-surface); border-bottom: 1px solid var(--color-border); min-height: 44px; max-height: 108px; overflow-y: auto; }
+.cal-allday__label { border-right: 1px solid var(--color-border); padding: 6px 8px; display: flex; align-items: center; font-family: var(--font-mono); font-size: 9px; line-height: 1.2; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+.cal-allday__col { border-right: 1px solid var(--color-border); padding: 4px; display: flex; flex-direction: column; gap: 3px; min-width: 0; transition: background var(--duration-fast); }
+.cal-allday__col.drag-over { background: var(--color-accent-soft); box-shadow: inset 0 0 0 2px var(--color-accent); }
+.cal-allday__hint { display: flex; align-items: center; justify-content: center; height: 100%; min-height: 30px; font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-faint); pointer-events: none; }
+.cal-allday__chip { display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 26px; box-sizing: border-box; padding: 3px 7px; border: 1px solid; border-radius: var(--radius-sm); cursor: grab; text-align: left; font-size: var(--font-size-xs); font-weight: var(--weight-medium); transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast); }
+.cal-allday__chip:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.cal-allday__chip:active { cursor: grabbing; }
+.cal-allday__chip.is-done { opacity: .55; }
+.cal-allday__chip.is-done .cal-allday__chip-title { text-decoration: line-through; }
+.cal-allday__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.cal-allday__chip-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Seta (painel lateral) e lixeira (excluir) do chip — reveladas no hover, como no timeblock */
+.cal-allday__arrow, .cal-allday__trash { flex: none; width: 17px; height: 17px; display: flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: currentColor; opacity: 0; cursor: pointer; transition: opacity var(--duration-fast), background var(--duration-fast), color var(--duration-fast); }
+.cal-allday__chip:hover .cal-allday__arrow { opacity: .65; }
+.cal-allday__chip:hover .cal-allday__trash { opacity: .6; }
+.cal-allday__arrow:hover { opacity: 1 !important; background: rgba(255,255,255,.22); }
+.cal-allday__trash:hover { opacity: 1 !important; background: rgba(255,255,255,.28); color: var(--color-danger, #d33); }
+/* Lixeira do pacote recolhido ("2 tarefas") — revelada no hover da barra */
+.cal-allday__pack-trash { margin-left: 2px; }
+.cal-allday__pack:hover .cal-allday__pack-trash { opacity: .6; }
+
+/* Pacote da faixa "Sem horário" (mesma ideia do pacote da grade) */
+.cal-allday__pack { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 26px; box-sizing: border-box; padding: 4px 6px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-card); color: var(--color-text-soft); cursor: pointer; text-align: left; box-shadow: 2px 2px 0 -1px var(--color-card), 2px 2px 0 0 var(--color-border); transition: border-color var(--duration-fast), transform var(--duration-fast) var(--ease-out); }
+.cal-allday__pack:hover { border-color: var(--color-accent); transform: translateY(-1px); }
+.cal-allday__pack-chips { display: inline-flex; gap: 2px; flex: none; }
+.cal-allday__pack-dot { width: 4px; height: 16px; border-radius: 2px; }
+.cal-allday__pack-count { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-xs); font-weight: var(--weight-semibold); color: var(--color-text); }
+.cal-allday__pack svg { flex: none; color: var(--color-text-muted); }
+.cal-allday__open { display: flex; flex-direction: column; gap: 3px; }
+.cal-allday__collapse { display: flex; align-items: center; gap: 5px; min-height: 26px; box-sizing: border-box; padding: 3px 6px; border: 1px solid var(--color-accent); border-radius: var(--radius-sm); background: var(--color-accent-soft); color: var(--color-accent); cursor: pointer; font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; font-weight: var(--weight-semibold); }
+.cal-allday__collapse svg { flex: none; }
+.cal-corner { border-right: 1px solid var(--color-border); }
+.cal-day { padding: 10px 12px; border-right: 1px solid var(--color-border); }
+.cal-day__dow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.cal-day__num { font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--weight-medium); color: var(--color-text); line-height: 1.1; margin-top: 2px; }
+.cal-day.is-today .cal-day__num { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 6px; background: var(--color-accent); color: var(--color-text-on-dark); border-radius: var(--radius-pill); }
+.cal-day.is-today .cal-day__dow { color: var(--color-accent); }
+
+.cal-body { display: grid; grid-template-columns: var(--time-w) repeat(var(--cols, 7), 1fr); padding-top: 8px; }
+.cal-rail { border-right: 1px solid var(--color-border); }
+.cal-slot { height: var(--row-h); position: relative; }
+.cal-slot > span { position: absolute; top: -7px; right: 8px; font-family: var(--font-mono); font-size: 10px; color: var(--color-text-faint); }
+.cal-col { position: relative; border-right: 1px solid var(--color-border); background-image: linear-gradient(var(--color-border) 1px, transparent 1px); background-size: 100% var(--row-h); }
+.cal-col.is-today { background-color: var(--color-accent-soft); }
+.cal-col.drag-over { background-color: var(--color-surface-sunken); }
+
+/* Bloco de tempo */
+.timeblock { position: absolute; left: 5px; right: 5px; border-radius: var(--radius-sm); padding: 6px 9px 6px 12px; overflow: hidden; cursor: grab; border: 1px solid; display: flex; flex-direction: column; gap: 3px; transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast); }
+.timeblock:hover { transform: translateY(-1px); box-shadow: var(--shadow-raised); z-index: 3; }
+.timeblock:active { cursor: grabbing; }
+.timeblock.is-dragging { opacity: .4; }
+.timeblock__prio { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+.timeblock__title { font-size: var(--font-size-sm); font-weight: var(--weight-semibold); line-height: 1.2; padding-right: 16px; overflow-wrap: anywhere; word-break: break-word; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.timeblock__meta { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; opacity: .85; }
+/* Estimativa dentro do bloco: some antes da hora quando o bloco é estreito
+   (vista Dia lado a lado), porque a hora é a informação de posição. */
+.timeblock__est { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .8; }
+.timeblock--multi .timeblock__est { display: none; }
+.timeblock--estudos { background: var(--color-priority-low-soft); border-color: color-mix(in srgb, var(--color-cat-estudos) 40%, transparent); color: var(--color-cat-estudos); }
+.timeblock--casa { background: var(--color-priority-important-soft); border-color: color-mix(in srgb, var(--color-cat-casa) 40%, transparent); color: var(--color-cat-casa); }
+.timeblock--generico { background: var(--color-surface-sunken); border-color: color-mix(in srgb, var(--color-cat-generico) 45%, transparent); color: var(--color-text-soft); }
+
+/* Botão de seta (abre drawer) */
+.timeblock__arrow {
+  position: absolute; top: 4px; right: 5px;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: var(--radius-sm);
+  background: transparent; color: currentColor;
+  opacity: 0; cursor: pointer; padding: 0;
+  transition: opacity var(--duration-fast), background var(--duration-fast);
+}
+.timeblock:hover .timeblock__arrow { opacity: .65; }
+.timeblock__arrow:hover { opacity: 1 !important; background: rgba(255,255,255,.25); }
+
+.timeblock__trash {
+  position: absolute; bottom: 4px; right: 5px;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: var(--radius-sm);
+  background: transparent; color: currentColor;
+  opacity: 0; cursor: pointer; padding: 0;
+  transition: opacity var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
+}
+.timeblock:hover .timeblock__trash { opacity: .6; }
+.timeblock__trash:hover { opacity: 1 !important; background: rgba(255,255,255,.3); color: var(--color-danger, #d33); }
+
+.timeblock__row { display: flex; align-items: flex-start; gap: 6px; }
+/* Toggle de concluída: segue a MESMA linguagem visual da seta e da lixeira do
+   bloco — discreto e na cor da categoria (currentColor). Antes usava
+   --color-border-strong, que no tema escuro some contra o fundo tingido, e
+   pesava 18px contra ícones de 11px. */
+.timeblock__check {
+  flex: none; width: 15px; height: 15px; margin-top: 1px;
+  display: grid; place-items: center;
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  border-radius: 50%; background: transparent; color: currentColor;
+  cursor: pointer; padding: 0;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.timeblock__check:hover { border-color: currentColor; background: color-mix(in srgb, currentColor 15%, transparent); }
+.timeblock__check svg { opacity: 0; transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease; transform: scale(0.7); width: 9px; height: 9px; }
+.timeblock__check.is-on { background: var(--color-success); color: #fff; border-color: var(--color-success); }
+.timeblock__check.is-on svg { opacity: 1; transform: scale(1); stroke: #fff; }
+.timeblock__content { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+
+.cal-allday__check { flex: none; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-border-strong); border-radius: 50%; background: transparent; color: currentColor; opacity: 0.65; cursor: pointer; margin: 0 6px; transition: border-color var(--duration-fast), background var(--duration-fast); }
+.cal-allday__check svg { opacity: 0; transform: scale(0.8); transition: opacity var(--duration-fast), transform var(--duration-fast); width: 10px; height: 10px; }
+.cal-allday__check.is-on { background: var(--color-success); border-color: var(--color-success); color: #fff; }
+.cal-allday__check.is-on svg { opacity: 1; transform: scale(1); stroke: #fff; }
+.cal-allday__chip:hover .cal-allday__check { opacity: 1; background: rgba(255,255,255,0.02); }
+
+.cal-monthpop__toggle { flex: none; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-border-strong); border-radius: 50%; background: transparent; color: currentColor; opacity: .7; cursor: pointer; transition: border-color var(--duration-fast), background var(--duration-fast); }
+.cal-monthpop__toggle svg { opacity: 0; transform: scale(0.8); transition: opacity var(--duration-fast), transform var(--duration-fast); width: 10px; height: 10px; }
+.cal-monthpop__toggle.is-on { background: var(--color-success); border-color: var(--color-success); color: #fff; }
+.cal-monthpop__toggle.is-on svg { opacity: 1; transform: scale(1); stroke: #fff; }
+.cal-monthpop__item:hover .cal-monthpop__toggle { opacity: 1; background: rgba(255,255,255,0.02); }
+
+/* Hover: destacar borda da bolinha de toggle em todas as vistas.
+   O bloco de tempo fica de fora: o halo de 4px era grande demais para o card
+   e o hover do próprio .timeblock__check já dá o retorno visual. */
+.cal-allday__chip:hover .cal-allday__check { border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border-strong)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.cal-pack-row:hover .cal-pack-row__act--done { border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border-strong)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.cal-monthpop__item:hover .cal-monthpop__toggle { border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border-strong)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 10%, transparent); }
+
+/* Soften effect for filled state hover to keep contrast */
+.cal-allday__chip:hover .cal-allday__check.is-on { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-success) 12%, transparent); }
+.cal-pack-row:hover .cal-pack-row__act--done.is-on { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-success) 12%, transparent); }
+.cal-monthpop__item:hover .cal-monthpop__toggle.is-on { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-success) 12%, transparent); }
+
+/* Bloco estreito (tarefas lado a lado num horário compartilhado) */
+.timeblock--multi { padding: 4px 5px 4px 8px; gap: 1px; }
+.timeblock--multi .timeblock__title { -webkit-line-clamp: 3; line-clamp: 3; padding-right: 4px; font-size: 12px; }
+.timeblock--multi .timeblock__meta { font-size: 9px; }
+.timeblock--multi .timeblock__row { gap: 5px; }
+.timeblock--multi .timeblock__check { width: 13px; height: 13px; }
+.timeblock--multi .timeblock__check svg { width: 8px; height: 8px; }
+
+/* Pacote fechado (tarefas agrupadas num mesmo horário) */
+.cal-pack {
+  position: absolute; left: 5px; right: 5px; z-index: 2;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 9px 6px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong); background: var(--color-card);
+  color: var(--color-text-soft); cursor: pointer; text-align: left; overflow: hidden;
+  box-shadow: 3px 3px 0 -1px var(--color-card), 3px 3px 0 0 var(--color-border);
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast), border-color var(--duration-fast);
+}
+.cal-pack:hover { transform: translateY(-1px); border-color: var(--color-accent); z-index: 3; }
+.cal-pack__stack { display: inline-flex; gap: 3px; flex: none; }
+.cal-pack__chip { width: 5px; height: 22px; border-radius: 3px; }
+.cal-pack__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cal-pack__count { font-size: var(--font-size-sm); font-weight: var(--weight-semibold); color: var(--color-text); line-height: 1.1; }
+.cal-pack__time { font-family: var(--font-mono); font-size: 10px; opacity: .8; }
+.cal-pack__expand { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex: none; border-radius: var(--radius-sm); background: var(--color-surface-sunken); color: var(--color-text-soft); transition: background var(--duration-fast), color var(--duration-fast); }
+.cal-pack:hover .cal-pack__expand { background: var(--color-accent-soft); color: var(--color-accent); }
+
+/* Pacote aberto (painel flutuante com as tarefas empilhadas) */
+.cal-pack-open {
+  position: absolute; left: 3px; right: 3px; z-index: 8;
+  max-height: 340px; overflow-y: auto;
+  background: var(--color-card); border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-raised);
+  animation: modal-fade-in var(--duration-fast) var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.cal-pack-open__head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 10px; background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+}
+.cal-pack-open__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); }
+.cal-pack-open__close {
+  flex: none; width: 22px; height: 22px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: var(--radius-sm); background: transparent;
+  color: var(--color-text-soft); cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.cal-pack-open__close:hover { background: var(--color-accent-soft); color: var(--color-accent); }
+.cal-pack-open__list { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+
+.cal-pack-row {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  padding: 7px 6px 7px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border); cursor: grab;
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast);
+}
+.cal-pack-row:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.cal-pack-row:active { cursor: grabbing; }
+.cal-pack-row.is-done { opacity: .55; }
+.cal-pack-row.is-done .cal-pack-row__title { text-decoration: line-through; }
+.cal-pack-row__prio { position: absolute; left: 0; top: 4px; bottom: 4px; width: 4px; border-radius: 0 3px 3px 0; }
+.cal-pack-row__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cal-pack-row__title { font-size: var(--font-size-sm); font-weight: var(--weight-semibold); color: var(--color-text); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-pack-row__time { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); }
+.cal-pack-row__act {
+  flex: none; width: 22px; height: 22px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: var(--radius-sm); background: transparent;
+  color: var(--color-text-soft); cursor: pointer; opacity: .55;
+  transition: opacity var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
+}
+.cal-pack-row:hover .cal-pack-row__act { opacity: 1; }
+.cal-pack-row__act:hover { background: var(--color-surface-sunken); }
+.cal-pack-row__act--del:hover { color: var(--color-danger, #d33); }
+
+/* Toggle de concluída: bolinha, igual à do chip "Sem horário" e à do bloco na
+   grade. Precisa vir DEPOIS de .cal-pack-row__act — o botão carrega as duas
+   classes e, com a mesma especificidade, a base é que valia (deixava o
+   toggle quadrado e sem borda). Sempre opaco: é estado, não ação de hover. */
+.cal-pack-row__act--done { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--color-border-strong); color: currentColor; opacity: 1; transition: background var(--duration-fast), border-color var(--duration-fast), box-shadow var(--duration-fast); }
+.cal-pack-row__act--done svg { opacity: 0; transform: scale(0.8); transition: opacity var(--duration-fast), transform var(--duration-fast); width: 10px; height: 10px; }
+.cal-pack-row__act--done:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.cal-pack-row__act--done.is-on, .cal-pack-row__act--done.is-on:hover { background: var(--color-success); border-color: var(--color-success); color: #fff; }
+.cal-pack-row__act--done.is-on svg { opacity: 1; transform: scale(1); stroke: #fff; }
+
+/* Linha do "agora" */
+.cal-now { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--color-danger); z-index: 4; }
+.cal-now::before { content: ''; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--color-danger); }
+
+/* ---------- Visão Mês ---------- */
+.cal-month { padding: var(--space-lg) var(--space-xl); }
+.cal-month__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--color-border); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.cal-month__dow { background: var(--color-card); padding: 8px; text-align: center; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.cal-month__cell { background: var(--color-card); min-width: 0; min-height: 96px; padding: 8px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.cal-month__cell.is-out { background: var(--color-surface); }
+.cal-month__num { font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--color-text-soft); }
+.cal-month__cell.is-today .cal-month__num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: var(--color-accent); color: var(--color-text-on-dark); border-radius: 50%; }
+.cal-month__ev { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 11px; color: var(--color-text-soft); cursor: pointer; border-radius: var(--radius-sm); padding: 1px 3px; margin: 0 -3px; transition: background var(--duration-fast); }
+.cal-month__ev:hover { background: var(--color-surface-sunken); }
+.cal-month__ev.is-dragging { opacity: .4; }
+.cal-month__ev--done { opacity: .55; }
+.cal-month__ev--done .cal-month__ev-title { text-decoration: line-through; }
+button.cal-month__ev { appearance: none; font: inherit; width: 100%; text-align: left; border: none; }
+.cal-month__ev--more { color: var(--color-text-muted); cursor: pointer; font-weight: var(--weight-semibold); }
+.cal-month__ev--more:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+
+/* Popover expansível do mês (todas as tarefas do dia) */
+.cal-monthpop__overlay { position: fixed; inset: 0; z-index: 210; }
+.cal-monthpop { position: fixed; z-index: 211; width: 244px; max-height: 320px; overflow-y: auto; background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-modal); padding: 8px; animation: modal-fade-in var(--duration-fast) var(--ease-out); transition: opacity var(--duration-fast) var(--ease-out); }
+.cal-monthpop__head { display: flex; align-items: center; gap: 6px; padding: 2px 2px 8px; border-bottom: 1px solid var(--color-border); margin-bottom: 6px; }
+.cal-monthpop__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); }
+.cal-monthpop__close { flex: none; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-soft); cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+.cal-monthpop__close:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.cal-monthpop__list { display: flex; flex-direction: column; gap: 2px; }
+.cal-monthpop__item { pointer-events: auto; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--radius-sm); cursor: grab; transition: background var(--duration-fast); }
+.cal-monthpop__item:hover { background: var(--color-surface-sunken); }
+.cal-monthpop__item:active { cursor: grabbing; }
+.cal-monthpop__item.is-dragging { opacity: .4; }
+.cal-monthpop__item.is-done .cal-monthpop__item-title { text-decoration: line-through; color: var(--color-text-muted); }
+.cal-monthpop__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.cal-monthpop__item-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-sm); color: var(--color-text); }
+.cal-month__ev-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-month__cell.drag-over { background: var(--color-accent-soft); box-shadow: inset 0 0 0 2px var(--color-accent); }
+.cal-month__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+.cal-legend { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm) var(--space-lg); padding: var(--space-md) var(--space-xl); border-top: 1px solid var(--color-border); flex: none; }
+.cal-legend__item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; font-size: var(--font-size-sm); color: var(--color-text-soft); }
+.cal-legend__dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+/* ---------- Modal de tarefa (popup centralizado) ---------- */
+.task-modal__backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(1, 35, 38, .4);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-lg);
+  backdrop-filter: blur(3px);
+  animation: modal-fade-in var(--duration-fast) var(--ease-out);
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.task-modal {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  width: 100%; max-width: 400px;
+  animation: modal-slide-in var(--duration-fast) var(--ease-out);
+}
+
+@keyframes modal-slide-in {
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ---------- Diálogo de confirmação ---------- */
+.confirm-dialog {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  width: 100%; max-width: 340px;
+  padding: var(--space-lg);
+  animation: modal-slide-in var(--duration-fast) var(--ease-out);
+}
+.confirm-dialog__title {
+  display: flex; align-items: center; gap: var(--space-sm);
+  font-family: var(--font-display); font-size: var(--font-size-md);
+  font-weight: var(--weight-semibold);
+}
+.confirm-dialog__ic {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex: none; border-radius: 50%;
+  background: color-mix(in srgb, var(--color-danger, #d33) 13%, transparent);
+  color: var(--color-danger, #d33);
+}
+.confirm-dialog__msg {
+  font-size: var(--font-size-sm); color: var(--color-text-soft);
+  line-height: 1.45; margin: var(--space-md) 0 var(--space-lg);
+}
+.confirm-dialog__msg strong { color: var(--color-text); font-weight: var(--weight-semibold); }
+.confirm-dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
+.confirm-dialog__danger {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border: none; border-radius: var(--radius-md);
+  background: var(--color-danger, #d33); color: #fff;
+  font-size: var(--font-size-sm); font-weight: var(--weight-semibold);
+  cursor: pointer; transition: filter var(--duration-fast);
+}
+.confirm-dialog__danger:hover { filter: brightness(.93); }
+
+.task-modal__head { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-lg) var(--space-lg) var(--space-md); border-bottom: 1px solid var(--color-border); }
+.task-modal__head-cat { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.task-modal__title { flex: 1; min-width: 0; overflow-wrap: anywhere; word-break: break-word; font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--weight-medium); line-height: 1.25; transition: color var(--duration-fast); }
+.task-modal__title.is-done { color: var(--color-text-muted); text-decoration: line-through; text-decoration-color: var(--color-border-strong); }
+.task-modal__close { margin-left: var(--space-sm); }
+
+.task-modal__info { padding: var(--space-md) var(--space-lg); display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--color-border); }
+.task-modal__row { display: flex; align-items: center; gap: var(--space-md); min-height: 24px; }
+.task-modal__label { font-size: var(--font-size-xs); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); min-width: 72px; flex: none; }
+.task-modal__val { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); color: var(--color-text-soft); }
+.task-modal__time { font-family: var(--font-mono); }
+
+.task-modal__controls { padding: var(--space-md) var(--space-lg) var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md); }
+
+.task-modal__ctrl-group { display: flex; flex-direction: column; gap: 8px; }
+.task-modal__ctrl-label { font-size: var(--font-size-xs); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); }
+
+.task-modal__prio-row { display: flex; gap: 5px; }
+.task-modal__prio-opt { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 6px; border-radius: var(--radius-pill); border: 1px solid var(--color-border-strong); background: var(--color-card); font-size: var(--font-size-xs); font-weight: var(--weight-medium); color: var(--color-text-soft); cursor: pointer; white-space: nowrap; transition: border-color var(--duration-fast), background var(--duration-fast), color var(--duration-fast); }
+.task-modal__prio-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+.task-modal__prio-opt[data-prio="urgent"]    .task-modal__prio-dot { background: var(--color-priority-urgent); }
+.task-modal__prio-opt[data-prio="important"] .task-modal__prio-dot { background: var(--color-priority-important); }
+.task-modal__prio-opt[data-prio="normal"]    .task-modal__prio-dot { background: var(--color-priority-normal); }
+.task-modal__prio-opt[data-prio="low"]       .task-modal__prio-dot { background: var(--color-priority-low); }
+
+.task-modal__prio-opt[data-prio="urgent"]:hover,
+.task-modal__prio-opt[data-prio="urgent"].is-on    { border-color: var(--color-priority-urgent);    color: var(--color-priority-urgent); }
+.task-modal__prio-opt[data-prio="important"]:hover,
+.task-modal__prio-opt[data-prio="important"].is-on { border-color: var(--color-priority-important); color: var(--color-priority-important); }
+.task-modal__prio-opt[data-prio="normal"]:hover,
+.task-modal__prio-opt[data-prio="normal"].is-on    { border-color: var(--color-priority-normal);    color: var(--color-priority-normal); }
+.task-modal__prio-opt[data-prio="low"]:hover,
+.task-modal__prio-opt[data-prio="low"].is-on       { border-color: var(--color-priority-low);       color: var(--color-priority-low); }
+
+.task-modal__prio-opt[data-prio="urgent"].is-on    { background: var(--color-priority-urgent-soft); }
+.task-modal__prio-opt[data-prio="important"].is-on { background: var(--color-priority-important-soft); }
+.task-modal__prio-opt[data-prio="normal"].is-on    { background: var(--color-priority-normal-soft); }
+.task-modal__prio-opt[data-prio="low"].is-on       { background: var(--color-priority-low-soft); }
+
+.task-modal__cat-wrap { position: relative; display: inline-block; }
+.task-modal__cat-btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 10px; border-radius: var(--radius-pill); border: 1px solid var(--color-border-strong); background: var(--color-card); font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text-soft); cursor: pointer; transition: border-color var(--duration-fast), color var(--duration-fast); }
+.task-modal__cat-btn:hover, .task-modal__cat-btn.is-open { border-color: var(--color-accent); color: var(--color-accent); }
+.task-modal__cat-btn-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-modal__cat-btn svg { flex: none; color: var(--color-text-muted); transition: transform var(--duration-fast); }
+.task-modal__cat-btn:hover svg, .task-modal__cat-btn.is-open svg { color: var(--color-accent); }
+.task-modal__cat-btn.is-open svg { transform: rotate(180deg); }
+.task-modal__cat-overlay { position: fixed; inset: 0; z-index: 10; }
+.task-modal__cat-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 11; min-width: 100%; max-width: 260px; max-height: 240px; overflow-y: auto; background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 6px; box-shadow: var(--shadow-raised); animation: modal-fade-in var(--duration-fast) var(--ease-out); }
+.task-modal__cat-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); border: none; background: transparent; font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text-soft); cursor: pointer; text-align: left; transition: background var(--duration-fast), color var(--duration-fast); }
+.task-modal__cat-item:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.task-modal__cat-item.is-on { background: var(--color-accent-soft); color: var(--color-text); }
+.task-modal__cat-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-modal__cat-item svg { flex: none; color: var(--color-accent); }
+.task-modal__cat-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+/* Date picker dropdown */
+.task-modal__date-wrap { position: relative; }
+.task-modal__date-btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 10px; border-radius: var(--radius-pill); border: 1px solid var(--color-border-strong); background: var(--color-card); font-family: var(--font-mono); font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text-soft); cursor: pointer; transition: border-color var(--duration-fast), color var(--duration-fast); }
+.task-modal__date-btn:hover, .task-modal__date-btn.is-open { border-color: var(--color-accent); color: var(--color-accent); }
+.task-modal__date-overlay { position: fixed; inset: 0; z-index: 10; }
+.task-modal__date-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 11; background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 10px; box-shadow: var(--shadow-raised); animation: modal-fade-in var(--duration-fast) var(--ease-out); }
+.task-modal__cal-head { font-family: var(--font-display); font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text); text-align: center; padding-bottom: 8px; }
+.task-modal__cal-grid { display: grid; grid-template-columns: repeat(7, 30px); gap: 2px; }
+.task-modal__cal-dow { height: 22px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 9px; letter-spacing: .07em; text-transform: uppercase; color: var(--color-text-muted); }
+.task-modal__cal-day { width: 30px; height: 30px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: var(--weight-medium); color: var(--color-text-soft); background: transparent; border: 1px solid transparent; cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+.task-modal__cal-day:hover { background: var(--color-surface-sunken); }
+.task-modal__cal-day.is-week:not(.is-on):not(.is-today) { background: color-mix(in srgb, var(--color-accent-soft) 60%, transparent); }
+.task-modal__cal-day.is-today { background: var(--color-accent); color: var(--color-text-on-dark); border-radius: 50%; }
+.task-modal__cal-day.is-on { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); border-radius: 50%; }
+.task-modal__cal-day.is-today.is-on { background: var(--color-accent); color: var(--color-text-on-dark); }
+
+/* ---------- Time picker inline (modal) ---------- */
+.task-modal__time-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px 4px 10px; border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong); background: var(--color-card);
+  font-family: var(--font-mono); font-size: var(--font-size-sm); font-weight: var(--weight-medium);
+  color: var(--color-text-soft); cursor: pointer;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+.task-modal__time-btn:hover, .task-modal__time-btn.is-open { border-color: var(--color-accent); color: var(--color-accent); }
+
+.task-modal__time-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 11;
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 10px; box-shadow: var(--shadow-raised);
+  min-width: 212px; animation: modal-fade-in var(--duration-fast) var(--ease-out);
+}
+.task-modal__time-label {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--color-text-faint); margin-bottom: 5px;
+}
+.task-modal__time-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin-bottom: 4px; }
+.task-modal__time-cell {
+  height: 28px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: var(--weight-medium);
+  color: var(--color-text-soft); background: transparent; border: 1px solid transparent;
+  cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast);
+}
+.task-modal__time-cell:hover { background: var(--color-surface-sunken); }
+.task-modal__time-cell.is-on { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); border-radius: 50%; }
+
+.task-modal__time-mins { display: flex; gap: 4px; }
+.task-modal__time-min {
+  flex: 1; height: 28px; border-radius: var(--radius-pill);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: var(--weight-medium);
+  color: var(--color-text-soft); background: transparent; border: 1px solid var(--color-border-strong);
+  cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+.task-modal__time-min:hover { background: var(--color-surface-sunken); }
+.task-modal__time-min.is-on { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent); }
+
+/* ---------- Drawer lateral ---------- */
+.cal-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  background: var(--color-card);
+  border-left: 1px solid var(--color-border);
+  box-shadow: -4px 0 28px rgba(1, 35, 38, .15);
+  z-index: 200;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 240ms var(--ease-out, ease);
+  /* A largura é controlada pelo EventDrawer (inline, clamp 380–900px).
+     NÃO repetir os limites aqui: o max-width de 560px que existia antes
+     travava o arrasto da borda no meio do caminho, sem erro nenhum.
+     O único limite que o CSS impõe é não passar da viewport. */
+  max-width: 95vw;
+}
+.cal-drawer.is-open { transform: translateX(0); }
+
+.cal-drawer__resize {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 6px; cursor: ew-resize; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none;
+}
+.cal-drawer__resize::before {
+  content: ''; width: 3px; height: 48px; border-radius: 2px;
+  background: var(--color-border-strong); opacity: .45;
+  transition: opacity var(--duration-fast);
+}
+.cal-drawer__resize:hover::before,
+.cal-drawer__resize:focus-visible::before,
+.cal-drawer__resize.is-dragging::before { opacity: 1; background: var(--color-accent); }
+.cal-drawer__resize:focus-visible { outline: none; }
+
+.cal-drawer__head {
+  display: flex; align-items: center; gap: var(--space-sm);
+  padding: var(--space-md) var(--space-md) var(--space-md) calc(var(--space-md) + 8px);
+  border-bottom: 1px solid var(--color-border); flex: none;
+}
+/* Sem padding: quem entra aqui (o .evsum) é dono do próprio recuo —
+   com padding nos dois o conteúdo ficava com margem dupla. */
+.cal-drawer__body { flex: 1; overflow-y: auto; padding: 0; }
+
+.cal-drawer__hint {
+  font-size: var(--font-size-xs); color: var(--color-text-faint);
+  font-family: var(--font-mono);
+}
+
+/* Timeblock concluído */
+.timeblock--done { opacity: .5; }
+.timeblock--done .timeblock__title { text-decoration: line-through; text-decoration-color: currentColor; }
+
+@media (max-width: 880px) {
+  .cal-top { padding: var(--space-md) var(--space-lg); flex-wrap: wrap; }
+}
+
+@media (max-width: 600px) {
+  .app__main--calendar {
+    max-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cal-wrap { width: 100%; min-width: 0; height: auto; min-height: 100dvh; }
+  .cal-scroll { flex: none; width: 100%; overflow-x: auto; overflow-y: visible; }
+  .cal-top { align-items: stretch; padding: var(--space-md); }
+  .cal-top__left,
+  .cal-top__right { width: 100%; min-width: 0; flex-wrap: wrap; gap: var(--space-sm); }
+  .cal-top__title { width: 100%; font-size: var(--font-size-xl); }
+  .cal-top__nav { width: 100%; justify-content: space-between; }
+  .cal-top__range { flex: 1; min-width: 0; }
+  .cal-top__right { justify-content: stretch; }
+  .cal-top__right > .btn { flex: 1 1 100%; }
+  .cal-seg { flex: 1 1 100%; }
+  .cal-seg button { flex: 1; min-width: 0; padding-inline: 8px; }
+  .cal-grid { --time-w: 52px; }
+  .cal-drawer { width: 100% !important; max-width: 100vw; }
+  .cal-drawer__resize { display: none; }
+}

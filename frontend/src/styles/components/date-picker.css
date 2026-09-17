@@ -1,0 +1,254 @@
+/* ============================================================
+   JustDoIt — components/date-picker.css
+   Calendário dropdown reutilizável (classes .date-pick__*).
+   TimePicker compartilha a mesma animação.
+   ============================================================ */
+
+/* ---------- Date picker dropdown ---------- */
+.date-pick { position: relative; display: inline-flex; }
+
+.date-pick__btn {
+  cursor: pointer;
+  border: none;
+  font: inherit;
+  transition: opacity var(--duration-fast), outline-color var(--duration-fast);
+}
+.date-pick__btn:hover { opacity: .8; }
+.date-pick__btn.is-open { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-pill); }
+
+.date-pick__chevron { transition: transform var(--duration-fast); }
+.date-pick__btn.is-open .date-pick__chevron { transform: rotate(180deg); }
+
+.date-pick__overlay { position: fixed; inset: 0; z-index: 50; }
+
+.date-pick__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 51;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  box-shadow: var(--shadow-raised);
+  min-width: 226px;
+  animation: date-pick-in var(--duration-fast) var(--ease-out);
+}
+
+@keyframes date-pick-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.date-pick__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.date-pick__month {
+  font-family: var(--font-display);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+}
+
+.date-pick__nav {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: var(--radius-sm);
+  background: transparent; border: none;
+  cursor: pointer; color: var(--color-text-muted);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.date-pick__nav:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+
+.date-pick__grid { display: grid; grid-template-columns: repeat(7, 30px); gap: 2px; }
+
+.date-pick__dow {
+  height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.date-pick__day {
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: var(--weight-medium);
+  color: var(--color-text-soft);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.date-pick__day:hover  { background: var(--color-surface-sunken); }
+.date-pick__day.is-today { background: var(--color-accent); color: var(--color-text-on-dark); border-radius: 50%; }
+.date-pick__day.is-on    { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); border-radius: 50%; }
+.date-pick__day.is-today.is-on { background: var(--color-accent); color: var(--color-text-on-dark); }
+
+/* ---------- Seleção de ano ---------- */
+.date-pick__years-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.date-pick__year-btn {
+  height: 30px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: var(--weight-medium);
+  color: var(--color-text-soft);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.date-pick__year-btn:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.date-pick__year-btn.is-on { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); }
+
+/* ---------- Seleção de mês ---------- */
+.date-pick__months-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.date-pick__month-btn {
+  height: 34px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: var(--weight-medium);
+  color: var(--color-text-soft);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.date-pick__month-btn:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.date-pick__month-btn.is-on { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); }
+
+/* Rótulo clicável para voltar à vista anterior */
+.date-pick__month--link {
+  cursor: pointer;
+  text-underline-offset: 2px;
+}
+.date-pick__month--link:hover { color: var(--color-accent); }
+
+/* ---------- Date picker em contexto de campo de formulário ---------- */
+.field .date-pick { display: block; }
+
+.field__date-btn {
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.field__date-val { flex: 1; color: var(--color-text-faint); }
+.field__date-val.is-set { color: var(--color-text); }
+
+.field__date-btn .date-pick__chevron { margin-left: auto; color: var(--color-text-muted); }
+
+.field__date-btn.is-open {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 3px var(--color-accent-soft) !important;
+}
+.field__date-btn.is-open .date-pick__chevron { transform: rotate(180deg); }
+
+/* ---------- Time picker dropdown ---------- */
+.time-pick { position: relative; display: inline-flex; }
+
+.time-pick__btn {
+  cursor: pointer;
+  border: none;
+  font: inherit;
+  transition: opacity var(--duration-fast), outline-color var(--duration-fast);
+}
+.time-pick__btn:hover { opacity: .8; }
+.time-pick__btn.is-open { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-pill); }
+.time-pick__btn[data-empty] { color: var(--color-text-soft); }
+
+.time-pick__chevron { transition: transform var(--duration-fast); }
+.time-pick__btn.is-open .time-pick__chevron { transform: rotate(180deg); }
+
+.time-pick__overlay { position: fixed; inset: 0; z-index: 50; }
+
+.time-pick__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 51;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  box-shadow: var(--shadow-raised);
+  min-width: 220px;
+  animation: date-pick-in var(--duration-fast) var(--ease-out);
+}
+
+.time-pick__section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  margin-bottom: 5px;
+}
+
+.time-pick__hours {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.time-pick__hour {
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: var(--weight-medium);
+  color: var(--color-text-soft);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.time-pick__hour:hover { background: var(--color-surface-sunken); }
+.time-pick__hour.is-on { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); border-radius: 50%; }
+
+.time-pick__mins {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.time-pick__min {
+  flex: 1;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: var(--weight-medium);
+  color: var(--color-text-soft);
+  background: transparent; border: 1px solid var(--color-border-strong);
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+.time-pick__min:hover { background: var(--color-surface-sunken); }
+.time-pick__min.is-on { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent); }
+
+.time-pick__divider { border: none; border-top: 1px solid var(--color-border); margin: 6px 0; }
+
+.time-pick__clear {
+  width: 100%; padding: 5px;
+  border-radius: var(--radius-sm);
+  background: transparent; border: none;
+  font-size: var(--font-size-xs); color: var(--color-text-muted);
+  cursor: pointer; text-align: center;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.time-pick__clear:hover { background: var(--color-surface-sunken); color: var(--color-text); }

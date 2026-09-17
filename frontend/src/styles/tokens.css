@@ -1,0 +1,200 @@
+/* ============================================================
+   JustDoIt — tokens.css
+   Variáveis globais do design system (cores, tipografia, espaços).
+   Identidade real "evergreen" do JustDoIt, exposta na arquitetura
+   de nomes esperada pelo frontend (--color-primary, --color-accent…).
+   NUNCA use valores fixos nos componentes — sempre estas variáveis.
+   ============================================================ */
+
+/* Fontes da marca (substituições via Google Fonts — troque pelos
+   arquivos reais em assets/fonts/ quando houver):
+   Spectral (serifa display) · Hanken Grotesk (UI/corpo) · JetBrains Mono (meta) */
+@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ---------- Âncoras da marca ---------- */
+  --brand-pine:  #012326;   /* tinta verde-profunda  */
+  --brand-teal:  #014040;   /* teal primário / ações */
+  --brand-sage:  #778c8a;   /* verde-acinzentado     */
+  --brand-paper: #f2f2f0;   /* papel quente / fundo  */
+  --brand-mist:  #bfbfbf;   /* cinza neutro          */
+
+  /* ---------- Cores semânticas (nomes esperados pelo front) ---------- */
+  --color-primary: var(--brand-pine);   /* tinta / texto principal / topo escuro */
+  --color-accent:  var(--brand-teal);   /* destaque / ações / links              */
+  --color-accent-hover:  #013a3a;        /* hover de ação                         */
+  --color-accent-active: #012e2f;        /* pressionado                           */
+  --color-accent-soft:   #eef5f4;        /* fill fantasma / hover suave           */
+  --color-surface: var(--brand-paper);   /* fundo geral do app                    */
+  --color-surface-sunken: #eef0ef;       /* áreas rebaixadas                      */
+  --color-card:    #ffffff;              /* fundo de cards                        */
+  --color-inverse: var(--brand-pine);    /* superfícies escuras (CTA, login)      */
+  --color-border:  #e7eae9;              /* bordas suaves (hairline)              */
+  --color-border-strong: #dde1e0;        /* bordas de ênfase / inputs             */
+
+  /* ---------- Texto ---------- */
+  --color-text:        var(--brand-pine); /* corpo / títulos        */
+  --color-text-soft:   #41514f;           /* apoio / secundário     */
+  --color-text-muted:  #526866;           /* metadados com contraste AA */
+  --color-text-faint:  #526866;           /* texto discreto com contraste AA */
+  --color-text-on-dark: var(--brand-paper);/* texto sobre escuro    */
+
+  /* ---------- Prioridades (RF11) — harmonizadas à paleta ---------- */
+  --color-priority-urgent:    #b5543f;   /* urgente   (ferrugem) */
+  --color-priority-important:  #c08a2e;  /* importante (âmbar)   */
+  --color-priority-normal:     #226340;  /* normal    (verde AA) */
+  --color-priority-low:        #778c8a;  /* baixa     (sage)     */
+  --color-priority-urgent-soft:    #f3ddd6;
+  --color-priority-important-soft: #f4e8d2;
+  --color-priority-normal-soft:    #dceee6;
+  --color-priority-low-soft:       #eceeed;
+
+  /* ---------- Categorias / módulos (pilares originais) ---------- */
+  --color-cat-estudos:  var(--brand-teal); /* Estudos — Foco/Pomodoro */
+  --color-cat-casa:     #b07b2e;           /* Casa — recorrência      */
+  --color-cat-generico: var(--brand-sage); /* Genérico — trava 24h    */
+
+  /* Paleta de cores para categorias criadas pelo usuário (10 tons
+     harmonizados à identidade terrosa — usados no modal "Nova categoria"). */
+  --color-cat-teal:       #014040;  /* teal     */
+  --color-cat-rust:       #b5543f;  /* ferrugem */
+  --color-cat-green:      #3a9469;  /* verde    */
+  --color-cat-sage:       #778c8a;  /* sage     */
+  --color-cat-purple:     #6b5b95;  /* roxo     */
+  --color-cat-pink:       #c2799a;  /* rosa     */
+  --color-cat-blue:       #4a7a9b;  /* azul     */
+  --color-cat-terracotta: #c2784a;  /* terracota*/
+  --color-cat-plum:       #834c5e;  /* vinho    */
+
+  /* ---------- Status ---------- */
+  --color-success: #3a9469;
+  --color-warning: #c08a2e;
+  --color-danger:  #b5543f;
+  --color-password-rule-invalid: #9f3d2c;
+  --color-info:    #1a6b68;
+
+  /* ---------- Tipografia ---------- */
+  --font-display: 'Spectral', Georgia, 'Times New Roman', serif;   /* títulos / hero */
+  --font-body:    'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, Menlo, monospace; /* datas / contagens */
+
+  --font-size-xs:  0.75rem;   /* 12 */
+  --font-size-sm:  0.875rem;  /* 14 */
+  --font-size-md:  1rem;      /* 16 */
+  --font-size-lg:  1.25rem;   /* 20 */
+  --font-size-xl:  1.5rem;    /* 24 */
+  --font-size-2xl: 2rem;      /* 32 */
+  --font-size-3xl: 2.5rem;    /* 40 */
+  --font-size-4xl: 3rem;      /* 48 */
+  --font-size-5xl: 3.75rem;   /* 60 */
+  --font-size-6xl: 4.5rem;    /* 72 */
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --leading-tight:   1.15;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.65;
+
+  /* ---------- Espaçamentos (grade 4px) ---------- */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  40px;
+  --space-2xl: 64px;
+
+  /* ---------- Bordas e sombras ---------- */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  /* sombras tingidas de pinheiro (não preto puro) */
+  --shadow-card:  0 2px 12px rgba(1, 35, 38, 0.06);
+  --shadow-raised:0 6px 20px rgba(1, 35, 38, 0.10);
+  --shadow-modal: 0 16px 48px rgba(1, 35, 38, 0.16);
+
+  /* ---------- Movimento ---------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+
+  /* Intensidade do tingido de categoria nos cards/blocos. Maior no tema
+     claro: 13% de cor sobre branco quase não aparece, então precisa de
+     mais peso para ler como "da cor da categoria" (ver dark abaixo). */
+  --block-tint: 22%;
+
+  /* ---------- Layout ---------- */
+  --sidebar-width: 264px;
+  --container-wide: 1200px;
+
+  /* ---------- Foco (acessibilidade) ---------- */
+  --focus-ring: 0 0 0 3px rgba(26, 107, 104, 0.35);
+}
+
+/* ============================================================
+   Dark mode — opt-in via <html data-theme="dark">
+   Mantém o DNA evergreen: fundo pinheiro profundo, acento clareado.
+   ============================================================ */
+:root[data-theme="dark"] {
+  --color-primary: #eef5f4;
+  --color-accent:  #3f8b86;
+  --color-accent-hover:  #6aa9a4;
+  --color-accent-active: #a3cac6;
+  --color-accent-soft:   #0e2624;
+  --color-surface: #06100f; /*fundo*/
+  --color-surface-sunken: #040b0a;
+  --color-card:    #0c1817;
+  --color-inverse: #f2f2f0;
+  --color-border:  #162725;
+  --color-border-strong: #1f312f;
+
+  --color-text:        #ffffff;
+  --color-text-soft:   #a3cac6;
+  --color-text-muted:  #6aa9a4;
+  --color-text-faint:  #5a6b69;
+  --color-text-on-dark: #012326;
+
+  --color-priority-urgent-soft:    #2e1712;
+  --color-priority-important-soft: #2c2210;
+  --color-priority-normal-soft:    #0f2a20;
+  --color-priority-low-soft:       #18211f;
+
+  /* ---------- Categorias no escuro ----------
+     Os tons terrosos do tema claro (teal #014040, roxo, vinho…) são
+     escuros demais para ler sobre o card quase preto — no calendário a
+     cor da categoria vira a cor do TEXTO do bloco, então precisa brilhar.
+     Aqui cada matiz ganha uma versão luminosa, mantendo o mesmo "hue"
+     da versão clara para a identidade não mudar entre os modos. */
+  --color-cat-estudos:  #52c7bd;  /* teal claro   */
+  --color-cat-casa:     #e0b25f;  /* âmbar claro  */
+  --color-cat-generico: #9fb5b2;  /* sage claro   */
+
+  --color-cat-teal:       #52c7bd;  /* teal      */
+  --color-cat-rust:       #ec8f76;  /* ferrugem  */
+  --color-cat-green:      #5fca92;  /* verde     */
+  --color-cat-sage:       #a6bcb9;  /* sage      */
+  --color-cat-purple:     #b6a4e6;  /* lilás     */
+  --color-cat-pink:       #ef9fc4;  /* rosa      */
+  --color-cat-blue:       #82b4d8;  /* azul      */
+  --color-cat-terracotta: #e6a577;  /* terracota */
+  --color-cat-plum:       #d896ad;  /* mauve     */
+
+  /* Sobre o card escuro, 13% já tinge o suficiente. */
+  --block-tint: 13%;
+
+  --shadow-card:  0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-raised:0 6px 20px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.5);
+
+  --color-success: #4fb085;
+  --color-warning: #d6a24a;
+  --color-danger:  #d27360;
+  --color-password-rule-invalid: #ff9380;
+  --color-info:    #3f8b86;
+}

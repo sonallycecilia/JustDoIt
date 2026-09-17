@@ -1,0 +1,90 @@
+/* ============================================================
+   JustDoIt — onboarding.css
+   Setup inicial guiado em passos (perfil → módulos → 1ª tarefa).
+   Tela centralizada, sem sidebar.
+   ============================================================ */
+
+.onb { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: var(--space-xl) var(--space-lg); }
+.onb__top { width: 100%; max-width: 620px; display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-xl); }
+.onb__brand { display: flex; align-items: center; gap: 9px; color: var(--color-text); }
+.onb__brand-mark { color: var(--color-accent); display: flex; }
+.onb__brand-word { font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: var(--weight-medium); }
+.onb__skip { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.onb__skip:hover { color: var(--color-text); }
+
+/* Stepper */
+.onb__steps { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); }
+.onb__step { width: 36px; height: 4px; border-radius: var(--radius-pill); background: var(--color-border); transition: background var(--duration-base); }
+.onb__step.is-done { background: var(--color-success); }
+.onb__step.is-active { background: var(--color-accent); }
+
+.onb__card { width: 100%; max-width: 620px; }
+.onb__panel { display: none; }
+.onb__panel.is-active { display: block; opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .onb__panel.is-active { animation: onb-in .35s var(--ease-out); }
+}
+@keyframes onb-in { from { transform: translateY(10px); } to { transform: none; } }
+
+.onb__eyebrow { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: var(--space-sm); }
+.onb__title { font-size: var(--font-size-2xl); margin-bottom: var(--space-xs); }
+.onb__sub { color: var(--color-text-soft); margin-bottom: var(--space-xl); }
+
+/* Opções de perfil */
+.profile-opts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-md); }
+.profile-opt {
+  display: flex; flex-direction: column; gap: var(--space-sm);
+  padding: var(--space-lg); text-align: left;
+  background: var(--color-card); border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+  cursor: pointer; transition: border-color var(--duration-fast), background var(--duration-fast), transform var(--duration-fast);
+}
+.profile-opt:hover { transform: translateY(-2px); border-color: var(--color-border-strong); }
+.profile-opt.is-sel { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.profile-opt__ic { width: 44px; height: 44px; border-radius: var(--radius-md); background: var(--color-surface-sunken); color: var(--color-accent); display: grid; place-items: center; }
+.profile-opt.is-sel .profile-opt__ic { background: var(--color-accent); color: var(--color-text-on-dark); }
+.profile-opt__ic svg { width: 22px; height: 22px; }
+.profile-opt__name { font-weight: var(--weight-semibold); color: var(--color-text); }
+.profile-opt__desc { font-size: var(--font-size-sm); color: var(--color-text-muted); line-height: 1.4; }
+
+/* Módulos recomendados */
+.mod-list { display: flex; flex-direction: column; gap: var(--space-sm); }
+.mod-row {
+  display: flex; align-items: center; gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+}
+.mod-row__ic { width: 38px; height: 38px; flex: none; border-radius: var(--radius-md); background: var(--color-surface-sunken); color: var(--color-text-muted); display: grid; place-items: center; }
+.mod-row__ic svg { width: 19px; height: 19px; }
+.mod-row.is-on .mod-row__ic { background: var(--color-accent-soft); color: var(--color-accent); }
+.mod-row__main { flex: 1; }
+.mod-row__name { font-weight: var(--weight-semibold); color: var(--color-text); }
+.mod-row__desc { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.mod-row__rec { font-size: var(--font-size-xs); color: var(--color-accent); font-weight: var(--weight-semibold); }
+
+/* Switch (reuso simples) */
+.switch { position: relative; width: 42px; height: 24px; flex: none; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch__track { position: absolute; inset: 0; background: var(--color-border-strong); border-radius: var(--radius-pill); transition: background var(--duration-base); }
+.switch__thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-card); transition: transform var(--duration-base) var(--ease-out); }
+.switch input:checked + .switch__track { background: var(--color-accent); }
+.switch input:checked + .switch__track .switch__thumb { transform: translateX(18px); }
+
+/* Primeira categoria + tarefa */
+.onb-field { margin-bottom: var(--space-lg); }
+.onb-field__label { display: block; font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text-soft); margin-bottom: 6px; }
+.onb-input { width: 100%; height: 44px; padding: 0 14px; background: var(--color-card); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); font-size: var(--font-size-md); color: var(--color-text); outline: none; transition: border-color var(--duration-fast), box-shadow var(--duration-fast); }
+.onb-input:focus { border-color: var(--color-accent); }
+.color-picker { display: flex; gap: var(--space-sm); }
+.color-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform var(--duration-fast); }
+.color-swatch:hover { transform: scale(1.1); }
+.color-swatch.is-sel { border-color: var(--color-text); }
+
+/* Mensagem de erro */
+.onb__error { margin-top: var(--space-md); font-size: var(--font-size-sm); color: var(--color-danger); }
+
+/* Rodapé de navegação */
+.onb__nav { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-xl); }
+
+@media (max-width: 560px) {
+  .profile-opts { grid-template-columns: 1fr; }
+}

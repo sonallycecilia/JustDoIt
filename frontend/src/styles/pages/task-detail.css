@@ -1,0 +1,362 @@
+/* ============================================================
+   JustDoIt — task-detail.css
+   Editor completo de tarefa: cabeçalho editável, módulos
+   ativáveis, cronômetro, notas e subtarefas.
+   ============================================================ */
+
+.detail { max-width: 860px; margin-inline: auto; padding: var(--space-xl); }
+
+/* Barra superior: voltar + botões */
+.detail__topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-lg); }
+.detail__topbar-actions { display: flex; align-items: center; gap: var(--space-sm); }
+.detail__back { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.detail__back svg { width: 16px; height: 16px; }
+.detail__back:hover { color: var(--color-text); }
+
+/* Cabeçalho editável */
+.detail__head { display: flex; align-items: flex-start; gap: var(--space-md); margin-bottom: var(--space-md); }
+.detail__check {
+  width: 28px; height: 28px; flex: none; margin-top: 4px;
+  border: 1.5px solid var(--color-border-strong); border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer; background: var(--color-card);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.detail__check:hover { border-color: var(--color-accent); }
+.detail__check svg { width: 16px; height: 16px; color: #fff; opacity: 0; }
+.task-editor.is-done .detail__check { background: var(--color-success); border-color: var(--color-success); }
+.task-editor.is-done .detail__check svg { opacity: 1; }
+
+/* Chip clicável de categoria */
+.chip--pick { cursor: pointer; size: 100%; }
+.chip--pick:hover { background: var(--color-surface-sunken); }
+
+/* Categoria como menu suspenso (mesmo padrão do filtro no To Do).
+   Escala para qualquer número de categorias: o menu rola em vez de crescer. */
+.cat-pick { position: relative; display: inline-flex; }
+.cat-pick__btn { gap: 6px; }
+.cat-pick__btn.is-open { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-pill); }
+.cat-pick__chevron { flex: none; color: var(--color-text-muted); transition: transform var(--duration-fast); }
+.cat-pick__btn.is-open .cat-pick__chevron { transform: rotate(180deg); }
+
+.cat-pick__overlay { position: fixed; inset: 0; z-index: 50; }
+.cat-pick__menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 51;
+  min-width: 200px; max-width: 280px; max-height: 280px; overflow-y: auto;
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 6px; box-shadow: var(--shadow-raised);
+}
+.cat-pick__overlay[hidden], .cat-pick__menu[hidden] { display: none; }
+.cat-pick__item {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border: none; border-radius: var(--radius-sm); background: transparent;
+  font-family: var(--font-body); font-size: var(--font-size-sm); font-weight: var(--weight-medium);
+  color: var(--color-text-soft); cursor: pointer; text-align: left;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.cat-pick__item:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.cat-pick__item.is-on { background: var(--color-accent-soft); color: var(--color-text); }
+.cat-pick__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.cat-pick__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-pick__check { flex: none; display: flex; color: var(--color-accent); }
+.cat-pick__check svg { width: 15px; height: 15px; }
+
+/* Placeholder no título */
+.edit-title[data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--color-text-faint); font-weight: var(--weight-regular); }
+
+/* Campos editáveis inline (contenteditable) */
+.edit-title {
+  flex: 1; min-width: 0; overflow-wrap: anywhere; word-break: break-word;
+  font-family: var(--font-display); font-size: var(--font-size-2xl); font-weight: var(--weight-medium);
+  color: var(--color-text); line-height: 1.2; letter-spacing: -0.01em;
+  outline: none; border-radius: var(--radius-sm); padding: 2px 6px; margin: -2px -6px;
+  transition: background var(--duration-fast), box-shadow var(--duration-fast);
+}
+.edit-title:hover { background: var(--color-surface-sunken); }
+.edit-title:focus { background: var(--color-card); }
+.task-editor.is-done .edit-title { color: var(--color-text-muted); text-decoration: line-through; text-decoration-color: var(--color-border-strong); }
+
+.edit-desc {
+  font-size: var(--font-size-md); color: var(--color-text-soft); line-height: var(--leading-relaxed);
+  outline: none; border-radius: var(--radius-sm); padding: 6px; margin: var(--space-sm) 0 var(--space-lg) 0px;
+  transition: background var(--duration-fast), box-shadow var(--duration-fast);
+}
+.edit-desc:hover { background: var(--color-surface-sunken); }
+.edit-desc:focus { background: var(--color-card); }
+.edit-desc:empty::before { content: attr(data-placeholder); color: var(--color-text-faint); }
+
+/* Chips de meta (categoria, data, prioridade) */
+.detail__chips { display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; margin: 0 0 var(--space-xl) 0px; }
+
+/* A prioridade da tarefa é editável mesmo sem o módulo de prioridade ativo. */
+.priority-pick { position: relative; }
+.priority-pick__btn { cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.priority-pick__btn.is-open { outline: 2px solid var(--color-accent-soft); }
+.priority-pick__menu {
+  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  min-width: 150px; padding: 6px;
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+}
+.priority-pick__menu .prio-opt { width: 100%; }
+
+/* ---------- Painel de módulos ativáveis (RF05) ---------- */
+.modules { margin-bottom: var(--space-xl); }
+.modules__title { font-size: var(--font-size-xs); font-weight: var(--weight-semibold); letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-faint); margin-bottom: var(--space-md); }
+.modules__grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-sm); }
+.module-toggle {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: var(--space-md) var(--space-sm);
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  cursor: pointer; text-align: center;
+  transition: border-color var(--duration-fast), background var(--duration-fast), transform var(--duration-fast);
+}
+.module-toggle:hover { border-color: var(--color-border-strong); }
+.module-toggle__ic { width: 38px; height: 38px; border-radius: var(--radius-md); display: grid; place-items: center; background: var(--color-surface-sunken); color: var(--color-text-muted); transition: background var(--duration-fast), color var(--duration-fast); }
+.module-toggle__ic svg { width: 19px; height: 19px; }
+.module-toggle__name { font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text-soft); }
+.module-toggle.is-on { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.module-toggle.is-on .module-toggle__ic { background: var(--color-accent); color: var(--color-text-on-dark); }
+.module-toggle.is-on .module-toggle__name { color: var(--color-text); }
+
+/* Painéis dos módulos ativos */
+.module-panels { display: flex; flex-direction: column; gap: var(--space-md); }
+.module-panel { padding: var(--space-lg); }
+.module-panel__head { display: flex; align-items: center; gap: 8px; margin-bottom: var(--space-md); }
+.module-panel__head svg { width: 18px; height: 18px; color: var(--color-accent); }
+.module-panel__title { font-weight: var(--weight-semibold); color: var(--color-text); }
+
+/* Cronômetro (RF13) + Foco (RF06) */
+.timer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg); }
+.timer__display { font-family: var(--font-mono); font-size: var(--font-size-3xl); font-weight: var(--weight-semibold); color: var(--color-text); font-variant-numeric: tabular-nums; }
+.timer__actions { display: flex; gap: var(--space-sm); }
+
+.pomo { display: flex; align-items: center; gap: var(--space-xl); }
+.pomo__ring { --pct: 0; width: 118px; height: 118px; border-radius: 50%; display: grid; place-items: center; position: relative; flex: none; background: conic-gradient(var(--color-accent) calc(var(--pct) * 1%), var(--color-surface-sunken) 0); transition: background .5s linear; }
+.pomo__ring::before { content: ''; position: absolute; inset: 11px; border-radius: 50%; background: var(--color-card); }
+.pomo__inner { position: relative; text-align: center; }
+.pomo__time { font-family: var(--font-mono); font-size: var(--font-size-xl); font-weight: var(--weight-semibold); color: var(--color-text); }
+.pomo__phase { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-muted); margin-top: 3px; }
+.pomo__side { flex: 1; }
+.pomo__actions { display: flex; gap: var(--space-sm); margin-top: var(--space-md); }
+
+/* Prioridade — seletor */
+.prio-picker { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.prio-opt {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong); background: var(--color-card);
+  font-size: var(--font-size-sm); font-weight: var(--weight-medium); color: var(--color-text-soft); cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.prio-opt__dot { width: 9px; height: 9px; border-radius: 50%; }
+.prio-opt.is-on { border-color: currentColor; }
+
+/* Recorrência — opções */
+.cycle-opts { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.cycle-opt { padding: 7px 14px; border-radius: var(--radius-pill); border: 1px solid var(--color-border-strong); background: var(--color-card); font-size: var(--font-size-sm); color: var(--color-text-soft); cursor: pointer; transition: border-color var(--duration-fast), background var(--duration-fast), color var(--duration-fast); }
+.cycle-opt.is-on { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-text); }
+
+/* ── Ciclo personalizado (intervalo × repetições) ───────────────── */
+.cycle-custom { margin-top: var(--space-md); display: flex; flex-direction: column; gap: var(--space-sm); }
+.cycle-custom[hidden] { display: none; }
+.cycle-custom__row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+.cycle-custom__label { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.cycle-custom__interval, .cycle-custom__reps { height: 28px; }
+/* Dropdown de unidade (horas ⇄ dias) embutido na pill do intervalo. */
+.cycle-unit-pick { position: relative; margin-left: 4px; }
+.cycle-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.cycle-unit:hover { filter: brightness(0.96); }
+.cycle-unit__chevron { width: 11px; height: 11px; transition: transform var(--duration-fast); }
+.cycle-unit.is-open .cycle-unit__chevron { transform: rotate(180deg); }
+
+.cycle-unit__overlay { position: fixed; inset: 0; z-index: 50; }
+.cycle-unit__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 51;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  box-shadow: var(--shadow-raised);
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cycle-unit__opt {
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-soft);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.cycle-unit__opt:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.cycle-unit__opt.is-on { background: var(--color-accent-soft); color: var(--color-accent); font-weight: var(--weight-medium); }
+.cycle-custom__times { color: var(--color-text-muted); margin-left: 2px; font-size: var(--font-size-sm); }
+.cycle-custom__reps input { width: 26px; }
+.cycle-custom__summary { margin: 2px 0 0; font-size: var(--font-size-sm); color: var(--color-text-soft); }
+
+/* Notas */
+.notes-area { width: 100%; min-height: 90px; resize: vertical; border: none; padding: var(--space-md); font-family: var(--font-body); font-size: var(--font-size-md); color: var(--color-text); background: transparent; outline: none; }
+
+/* ---------- Subtarefas com progresso em cascata (RF03) ---------- */
+.subtasks__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); }
+.subtasks__progress { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-md); }
+.subtasks__progress .progress { flex: 1; }
+.subtasks__count { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--color-text-muted); white-space: nowrap; }
+.subtask { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--color-border); }
+.subtask:last-child { border-bottom: 0; }
+/* Redondo de propósito, igual ao .detail__check do título: os dois são "marcar
+   como feito". A vitrine da landing reusa esta mesma classe. */
+.subtask__check { width: 19px; height: 19px; flex: none; border: 1.5px solid var(--color-border-strong); border-radius: 50%; display: grid; place-items: center; cursor: pointer; background: var(--color-card); transition: background var(--duration-fast), border-color var(--duration-fast); }
+.subtask__check svg { width: 12px; height: 12px; color: #fff; opacity: 0; transition: opacity var(--duration-fast); }
+.subtask.is-done .subtask__check { background: var(--color-accent); border-color: var(--color-accent); }
+.subtask.is-done .subtask__check svg { opacity: 1; }
+.subtask__label { flex: 1; font-size: var(--font-size-md); color: var(--color-text); }
+.subtask.is-done .subtask__label { color: var(--color-text-muted); text-decoration: line-through; text-decoration-color: var(--color-border-strong); }
+.subtask__add { display: flex; align-items: center; gap: 8px; padding-top: var(--space-md); }
+.subtask__add input { flex: 1; border: 0; outline: 0; background: transparent; font-size: var(--font-size-md); color: var(--color-text); }
+.subtask__add input::placeholder { color: var(--color-text-faint); }
+.subtask__del {
+  width: 20px; height: 20px; flex: none;
+  display: grid; place-items: center; border-radius: var(--radius-sm);
+  color: var(--color-text-faint); cursor: pointer; opacity: 0;
+  transition: opacity var(--duration-fast), color var(--duration-fast), background var(--duration-fast);
+}
+.subtask__del svg { width: 13px; height: 13px; }
+.subtask:hover .subtask__del { opacity: 1; }
+.subtask__del:hover { background: var(--color-priority-urgent-soft); color: var(--color-danger); }
+
+/* ---------- Chips progress bar ---------- */
+.chips-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.chips-progress__bar {
+  width: 56px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+  flex: none;
+}
+
+.chips-progress__fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  transition: width var(--duration-base) var(--ease-out);
+}
+
+.chips-progress__fill--success { background: var(--color-success); }
+
+.chips-progress__count {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 880px) {
+  .detail { padding: var(--space-lg); }
+  .modules__grid { grid-template-columns: repeat(3, 1fr); }
+  .pomo { flex-direction: column; align-items: stretch; }
+  .detail__topbar-actions { gap: 6px; }
+}
+@media (max-width: 520px) {
+  .modules__grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Modo embed (iframe no drawer do calendário) */
+.is-embed [data-sidebar],
+.is-embed .detail__back { display: none; }
+.is-embed .app { display: block; }
+.is-embed .app__main { padding: 0; }
+
+/* ---------- Duração estimada (Time-Boxing) ---------- */
+/* Mesmo "molde" dos badges vizinhos (.chip / .badge--info): pílula de
+   24px de altura, mesma borda e mesma tipografia — só que com <input>
+   editável no lugar de texto fixo. */
+.reminder-pick,
+.dur-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-soft);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.reminder-pick select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.reminder-pick select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.reminder-pick.is-disabled { opacity: .55; cursor: not-allowed; }
+.reminder-pick.is-disabled select { cursor: not-allowed; }
+.dur-pick svg { width: 13px; height: 13px; flex: none; color: var(--color-text-muted); margin-right: 2px; }
+.dur-pick input {
+  width: 18px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-medium);
+  font-family: inherit;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+.dur-pick input:first-of-type { margin-left: 2px; }
+.dur-pick input:focus { outline: none; color: var(--color-accent); }
+.dur-pick input::-webkit-outer-spin-button,
+.dur-pick input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.dur-alert {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-medium);
+  margin-right: 8px;
+}
+.dur-alert.hidden { display: none; }
